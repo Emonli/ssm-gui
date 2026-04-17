@@ -139,7 +139,11 @@ This project is an extended branch based on the core architecture of [kvarenzn/s
 > 仍可使用传统命令行参数方式启动。
 > 详细参数请参考 [kvarenzn 的使用指南](https://github.com/kvarenzn/ssm/blob/main/docs/USAGE.md)。
 
+## Alternative Solutions
 
+If you are currently looking for a reliable auto-play/auto-click solution, I highly recommend checking out [juluobaka's ssm_GUI_plus](https://github.com/juluobaka/ssm_GUI_plus). Their project offers a much more stable screen mirroring implementation along with a visually calibrated auto-hit feature. 
+
+I will also be integrating their core methods into the fully automated workflow of the MAA branch in the near future to further enhance overall stability.
 
 ## Disclaimer
 This program was heavily developed with the assistance of AI. Please use it at your own discretion and feel free to report any unexpected bugs or issues.
