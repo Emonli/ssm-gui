@@ -72,12 +72,18 @@ This project is an extended branch based on the core architecture of [kvarenzn/s
       - Path format:
          `/sdcard/Android/data/{game_package_name}/files/data/`
 
-5. **Set up device in GUI**
+5. **Extract assets**
+    - Open the **Extract Assets** page in the sidebar.
+    - Enter the full path to the data folder you just pulled, then click **Extract**.
+    - This unpacks the charts into an `assets/` folder. Skipping this step causes "Musicscore not found".
+    - Redo this whenever you add new songs or difficulties.
+
+6. **Set up device in GUI**
     - Open the **Settings** page.
     - Add your device (serial number can be auto-detected or selected from dropdown).
     - Choose connection type: **HID** or **ADB**.
 
-6. **Load song and start playback**
+7. **Load song and start playback**
     - In the main flow, go through: **Song Setup -> Play Control -> Start**.
     - When the first note reaches the judgement line, press **Start** (or keyboard **Enter** / **Space**).
     - If timing is early/late, adjust **Offset/Delay** and retry.
@@ -124,13 +130,20 @@ This project is an extended branch based on the core architecture of [kvarenzn/s
      * 通用路径：
        `/sdcard/Android/data/{游戏包名}/files/data/`
 
-5. **在 GUI 中设置设备**
+5. **解包资源**
+
+   * 打开侧边栏的 **Extract Assets** 页面。
+   * 填入刚刚 pull 下来的数据目录的完整路径，点击 **Extract**。
+   * 这会把谱面解包到 `assets/` 文件夹。跳过这步会出现「未找到谱面 / Musicscore not found」。
+   * 每次新增歌曲或难度后都要重新解包。
+
+6. **在 GUI 中设置设备**
 
    * 进入 **Settings** 页面添加设备。
    * 序列号可以自动检测，或从下拉菜单选择。
    * 连接方式选择 **HID** 或 **ADB**。
 
-6. **选歌并开始**
+7. **选歌并开始**
 
    * 按流程操作：**Song Setup -> Play Control -> Start**。
    * 当第一个音符接近判定线时，按 **Start**（或键盘 **Enter** / **Space**）。
