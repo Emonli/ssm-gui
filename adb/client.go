@@ -161,9 +161,9 @@ func (c *Client) ListForward(reverse bool) ([]Forward, error) {
 	var resp string
 	var err error
 	if reverse {
-		conn, err := c.Open("host:tport:any")
-		if err != nil {
-			return nil, err
+		conn, openErr := c.Open("host:tport:any")
+		if openErr != nil {
+			return nil, openErr
 		}
 		buf := make([]byte, 8)
 		conn.conn.Read(buf)
