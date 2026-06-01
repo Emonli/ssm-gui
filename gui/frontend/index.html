@@ -14,13 +14,13 @@
       <div class="sidebar-top">
         <div class="logo">SSM</div>
         <div class="top-actions">
-          <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle theme">
+          <button class="theme-btn" id="theme-btn" data-action="toggleTheme" title="Toggle theme">
             <span id="theme-ico">☾</span>
           </button>
           <div class="lang-picker" id="lang-picker">
             <button
               class="lang-btn border border-ssm-border bg-ssm-bg rounded-lg px-2 py-1 text-sm text-white flex items-center gap-1 hover:bg-[#2a2a2a] transition-all duration-300 shadow-sm active:scale-95"
-              id="lang-btn" onclick="toggleLangMenu()">
+              id="lang-btn" data-action="toggleLangMenu">
               <span class="lb-name font-bold tracking-wider" id="lb-name">EN</span>
               <span class="lb-arrow text-ssm-muted">▾</span>
             </button>
@@ -30,16 +30,16 @@
       </div>
 
       <div class="nav-sec" data-i18n="nav.menu">Menu</div>
-      <button class="nav-btn active" id="nav-song" onclick="nav('song')">
+      <button class="nav-btn active" id="nav-song" data-action="nav" data-arg="song">
         <span class="ico">♪</span><span data-i18n="nav.song">Song Setup</span>
       </button>
-      <button class="nav-btn" id="nav-play" onclick="nav('play')">
+      <button class="nav-btn" id="nav-play" data-action="nav" data-arg="play">
         <span class="ico">▶</span><span data-i18n="nav.play">Play Control</span>
       </button>
-      <button class="nav-btn" id="nav-settings" onclick="nav('settings')">
+      <button class="nav-btn" id="nav-settings" data-action="nav" data-arg="settings">
         <span class="ico">⚙</span><span data-i18n="nav.settings">Settings</span>
       </button>
-      <button class="nav-btn" id="nav-extract" onclick="nav('extract')">
+      <button class="nav-btn" id="nav-extract" data-action="nav" data-arg="extract">
         <span class="ico">📦</span><span data-i18n="nav.extract">Extract Assets</span>
       </button>
 
@@ -92,11 +92,11 @@
           <div class="card song-card mode-card">
             <div class="ct" data-i18n="song.mode">Game Mode</div>
             <div class="bg mode-bg">
-              <div class="bc active" id="mode-bang" onclick="setMode('bang')">
+              <div class="bc active" id="mode-bang" data-action="setMode" data-arg="bang">
                 <div class="bcn">BanG Dream!</div>
                 <div class="bcs" data-i18n="song.mode.bang">Girls Band Party</div>
               </div>
-              <div class="bc" id="mode-pjsk" onclick="setMode('pjsk')">
+              <div class="bc" id="mode-pjsk" data-action="setMode" data-arg="pjsk">
                 <div class="bcn">Project Sekai</div>
                 <div class="bcs" data-i18n="song.mode.pjsk">Colorful Stage!</div>
               </div>
@@ -111,10 +111,10 @@
             </div>
 
             <div class="bg">
-              <div class="bc" id="backend-hid" onclick="setBackend('hid')">
+              <div class="bc" id="backend-hid" data-action="setBackend" data-arg="hid">
                 <div class="bcn">HID</div>
               </div>
-              <div class="bc active" id="backend-adb" onclick="setBackend('adb')">
+              <div class="bc active" id="backend-adb" data-action="setBackend" data-arg="adb">
                 <div class="bcn">ADB</div>
               </div>
             </div>
@@ -124,7 +124,7 @@
                 <label class="!mb-0" data-i18n="song.serial.label">Device serial</label>
                 <button
                   class="auto-detect-btn text-[10px] bg-[#27272a] text-blue-400 hover:bg-blue-600 hover:text-white px-2 py-1 rounded border border-[#3f3f46] transition-all font-bold flex items-center gap-1 active:scale-95"
-                  onclick="autoDetectDevice()">
+                  data-action="autoDetectDevice">
                   🔍 Auto Detect
                 </button>
               </div>
@@ -133,7 +133,7 @@
                 <input type="text" id="dev-serial" autocomplete="off" class="pr-10">
                 <button
                   class="sc absolute right-3 top-1/2 -translate-y-1/2 text-ssm-muted hover:text-white transition-colors"
-                  id="btn-dev-drop" onclick="toggleDevDrop(event)">▾</button>
+                  id="btn-dev-drop" data-action="toggleDevDrop">▾</button>
                 <div class="drop" id="dev-drop"></div>
               </div>
             </div>
@@ -141,10 +141,10 @@
             <div id="orient-wrap" class="field !mb-0">
               <label data-i18n="song.orient">Screen rotation (HID only)</label>
               <div class="grid grid-cols-2 gap-3 mt-2">
-                <button class="bc active !p-3 flex items-center justify-center" id="ol" onclick="setOrient('left')">
+                <button class="bc active !p-3 flex items-center justify-center" id="ol" data-action="setOrient" data-arg="left">
                   <div class="bcs !text-sm !font-bold" data-i18n="song.orient.left">↺ CCW</div>
                 </button>
-                <button class="bc !p-3 flex items-center justify-center" id="or" onclick="setOrient('right')">
+                <button class="bc !p-3 flex items-center justify-center" id="or" data-action="setOrient" data-arg="right">
                   <div class="bcs !text-sm !font-bold" data-i18n="song.orient.right">↻ CW</div>
                 </button>
               </div>
@@ -159,17 +159,17 @@
             id="sel-bar" style="display: none;">
             <span class="sb-id text-ssm-blue font-mono font-bold" id="sb-id"></span>
             <span class="sb-title flex-1 font-bold" id="sb-title"></span>
-            <button class="sb-x text-ssm-hint hover:text-white transition-colors" onclick="clearSong()">✕</button>
+            <button class="sb-x text-ssm-hint hover:text-white transition-colors" data-action="clearSong">✕</button>
           </div>
 
           <div class="field">
             <label data-i18n="song.search.label">Search by name</label>
             <div class="sw relative">
               <input type="text" id="q" data-i18n-placeholder="song.search.placeholder" autocomplete="off"
-                oninput="onQInput()" onkeydown="onQKey(event)" onfocus="onQFocus()">
+                data-oninput="onQInput" data-onkeydown="onQKey" data-onfocus="onQFocus">
               <button
                 class="sc absolute right-3 top-1/2 -translate-y-1/2 text-ssm-muted hover:text-white transition-colors"
-                id="sc" onclick="clearQ()">✕</button>
+                id="sc" data-action="clearQ">✕</button>
               <div class="drop" id="drop"></div>
             </div>
           </div>
@@ -178,7 +178,7 @@
             <div class="field">
               <label data-i18n="song.id.label">Or enter Song ID directly</label>
               <input type="number" id="song-id" data-i18n-placeholder="song.id.placeholder" min="1"
-                oninput="onManualId()">
+                data-oninput="onManualId">
             </div>
 
             <div class="field">
@@ -190,16 +190,16 @@
           <div class="field !mb-0">
             <label data-i18n="song.diff">Difficulty</label>
             <div class="diff-row">
-              <button class="db easy" onclick="setDiff(0)">EASY</button>
-              <button class="db normal" onclick="setDiff(1)">NORMAL</button>
-              <button class="db hard" onclick="setDiff(2)">HARD</button>
-              <button class="db expert active" onclick="setDiff(3)">EXPERT</button>
-              <button class="db special" onclick="setDiff(4)">SPECIAL</button>
-              <button class="db append" onclick="setDiff(5)">APPEND</button>
+              <button class="db easy" data-action="setDiff" data-arg="0">EASY</button>
+              <button class="db normal" data-action="setDiff" data-arg="1">NORMAL</button>
+              <button class="db hard" data-action="setDiff" data-arg="2">HARD</button>
+              <button class="db expert active" data-action="setDiff" data-arg="3">EXPERT</button>
+              <button class="db special" data-action="setDiff" data-arg="4">SPECIAL</button>
+              <button class="db append" data-action="setDiff" data-arg="5">APPEND</button>
             </div>
           </div>
         </div>
-        <button class="btn pri btn-b" onclick="submitRun()" data-i18n="song.load">▶ Load &amp; Prepare</button>
+        <button class="btn pri btn-b" data-action="submitRun" data-i18n="song.load">▶ Load &amp; Prepare</button>
         <div class="log" id="song-log"></div>
       </div>
 
@@ -228,7 +228,7 @@
             <div class="field !mb-0"><label data-i18n="device.height">Height (px)</label><input type="number" id="dc-h"
                 placeholder="2340" min="1"></div>
           </div>
-          <button class="btn pri" onclick="saveDevice()" data-i18n="device.save">Save</button>
+          <button class="btn pri" data-action="saveDevice" data-i18n="device.save">Save</button>
           <div class="hint mt-3 text-sm text-ssm-hint" id="dc-hint"></div>
         </div>
 
@@ -236,27 +236,27 @@
           <div class="ct" data-i18n="jitter.title">Humanization (Jitter)</div>
           <div class="jitter-row">
             <span class="jitter-label" data-i18n="jitter.timing">Timing ±ms</span>
-            <input type="range" id="sld-timing" min="0" max="200" step="1" value="0" oninput="onJitter('timing')">
+            <input type="range" id="sld-timing" min="0" max="200" step="1" value="0" data-oninput="onJitter" data-arg="timing">
             <span class="jitter-val text-ssm-hint" id="val-timing">OFF</span>
           </div>
           <div class="jitter-row">
             <span class="jitter-label" data-i18n="jitter.position">Position ±%</span>
-            <input type="range" id="sld-position" min="0" max="10" step="1" value="0" oninput="onJitter('position')">
+            <input type="range" id="sld-position" min="0" max="10" step="1" value="0" data-oninput="onJitter" data-arg="position">
             <span class="jitter-val text-ssm-hint" id="val-position">OFF</span>
           </div>
           <div class="jitter-row">
             <span class="jitter-label" data-i18n="jitter.tapDur">Tap duration ±ms</span>
-            <input type="range" id="sld-tapDur" min="0" max="40" step="1" value="0" oninput="onJitter('tapDur')">
+            <input type="range" id="sld-tapDur" min="0" max="40" step="1" value="0" data-oninput="onJitter" data-arg="tapDur">
             <span class="jitter-val text-ssm-hint" id="val-tapDur">OFF</span>
           </div>
           <div class="jitter-row">
             <span class="jitter-label" data-i18n="jitter.grOffset">Great Offset ms</span>
-            <input type="range" id="sld-grOffset" min="10" max="200" step="5" value="75" oninput="onJitter('grOffset')">
+            <input type="range" id="sld-grOffset" min="10" max="200" step="5" value="75" data-oninput="onJitter" data-arg="grOffset">
             <span class="jitter-val text-ssm-hint" id="val-grOffset">75 ms</span>
           </div>
           <div class="jitter-row">
             <span class="jitter-label" data-i18n="jitter.grCount">Great Count</span>
-            <input type="number" id="inp-grCount" min="0" max="300" step="1" value="0" oninput="onGreatCountInput()" style="width:96px;padding:4px 6px;border-radius:6px;border:1px solid rgba(255,255,255,0.12);background:rgba(0,0,0,0.2);color:var(--txt)">
+            <input type="number" id="inp-grCount" min="0" max="300" step="1" value="0" data-oninput="onGreatCountInput" style="width:96px;padding:4px 6px;border-radius:6px;border:1px solid rgba(255,255,255,0.12);background:rgba(0,0,0,0.2);color:var(--txt)">
             <span class="jitter-val text-ssm-hint" id="val-grCount">OFF</span>
           </div>
           <div class="jitter-hint text-xs text-ssm-hint mt-2" data-i18n="jitter.hint"></div>
@@ -268,40 +268,40 @@
           <div class="jitter-row">
             <span class="jitter-label" data-i18n="settings.tapDuration">Tap Duration (ms)</span>
             <input type="range" id="sld-tapDuration" min="1" max="50" step="1" value="10"
-              oninput="onAdvanced('tapDuration')">
+              data-oninput="onAdvanced" data-arg="tapDuration">
             <span class="jitter-val !text-ssm-blue" id="val-tapDuration">10</span>
           </div>
           <div class="jitter-row">
             <span class="jitter-label" data-i18n="settings.flickDuration">Flick Duration (ms)</span>
             <input type="range" id="sld-flickDuration" min="5" max="120" step="1" value="60"
-              oninput="onAdvanced('flickDuration')">
+              data-oninput="onAdvanced" data-arg="flickDuration">
             <span class="jitter-val !text-ssm-blue" id="val-flickDuration">60</span>
           </div>
           <div class="jitter-row">
             <span class="jitter-label" data-i18n="settings.flickReportInterval">Flick Report Interval (ms)</span>
             <input type="range" id="sld-flickReportInterval" min="1" max="20" step="1" value="5"
-              oninput="onAdvanced('flickReportInterval')">
+              data-oninput="onAdvanced" data-arg="flickReportInterval">
             <span class="jitter-val !text-ssm-blue" id="val-flickReportInterval">5</span>
           </div>
           <div class="jitter-row">
             <span class="jitter-label" data-i18n="settings.slideReportInterval">Slide Report Interval (ms)</span>
             <input type="range" id="sld-slideReportInterval" min="1" max="30" step="1" value="10"
-              oninput="onAdvanced('slideReportInterval')">
+              data-oninput="onAdvanced" data-arg="slideReportInterval">
             <span class="jitter-val !text-ssm-blue" id="val-slideReportInterval">10</span>
           </div>
           <div class="jitter-row">
             <span class="jitter-label" data-i18n="settings.flickFactor">Flick Factor</span>
             <input type="range" id="sld-flickFactor" min="5" max="50" step="1" value="20"
-              oninput="onAdvanced('flickFactor')">
+              data-oninput="onAdvanced" data-arg="flickFactor">
             <span class="jitter-val !text-ssm-blue" id="val-flickFactor">0.20</span>
           </div>
           <div class="jitter-row">
             <span class="jitter-label" data-i18n="settings.flickPow">Flick Curve Exponent</span>
-            <input type="range" id="sld-flickPow" min="5" max="30" step="1" value="10" oninput="onAdvanced('flickPow')">
+            <input type="range" id="sld-flickPow" min="5" max="30" step="1" value="10" data-oninput="onAdvanced" data-arg="flickPow">
             <span class="jitter-val !text-ssm-blue" id="val-flickPow">1.0</span>
           </div>
           <div class="text-center mt-4">
-            <button class="btn" onclick="resetAdvanced()" data-i18n="settings.defaults">Reset to Defaults</button>
+            <button class="btn" data-action="resetAdvanced" data-i18n="settings.defaults">Reset to Defaults</button>
           </div>
         </div>
       </div>
@@ -337,13 +337,13 @@
                   </div>
                 </div>
               </div>
-              <button class="pd-change-btn" onclick="navToSearch()" data-i18n="play.change">Change</button>
+              <button class="pd-change-btn" data-action="navToSearch" data-i18n="play.change">Change</button>
             </div>
 
             <div class="pd-actions-sec">
               <div class="pd-actions-row">
-                <button class="pd-btn-stop" onclick="apiStop()" title="Stop"></button>
-                <button class="pd-btn-start" id="btn-start" onclick="apiStart()" disabled data-i18n="play.start.btn">▶
+                <button class="pd-btn-stop" data-action="apiStop" title="Stop"></button>
+                <button class="pd-btn-start" id="btn-start" data-action="apiStart" disabled data-i18n="play.start.btn">▶
                   START</button>
               </div>
 
@@ -360,21 +360,21 @@
                     <span data-i18n="play.offset.title">Offset Adjustment</span>
 
                   </div>
-                  <button class="text-blue-400 hover:text-blue-300 font-bold text-[11px]" onclick="resetOff()"
+                  <button class="text-blue-400 hover:text-blue-300 font-bold text-[11px]" data-action="resetOff"
                     data-i18n="play.offset.reset">Reset</button>
                 </div>
                 <div class="pd-offset-bar">
-                  <button onclick="adj(-100)" title="-100ms">«</button>
-                  <button onclick="adj(-50)" title="-50ms">‹‹</button>
-                  <button onclick="adj(-10)" title="-10ms">‹</button>
+                  <button data-action="adj" data-arg="-100" title="-100ms">«</button>
+                  <button data-action="adj" data-arg="-50" title="-50ms">‹‹</button>
+                  <button data-action="adj" data-arg="-10" title="-10ms">‹</button>
 
                   <div class="pd-offset-val">
                     <span id="ov">0</span><small>ms</small>
                   </div>
 
-                  <button onclick="adj(10)" title="+10ms">›</button>
-                  <button onclick="adj(50)" title="+50ms">››</button>
-                  <button onclick="adj(100)" title="+100ms">»</button>
+                  <button data-action="adj" data-arg="10" title="+10ms">›</button>
+                  <button data-action="adj" data-arg="50" title="+50ms">››</button>
+                  <button data-action="adj" data-arg="100" title="+100ms">»</button>
                 </div>
                 <div class="ins-group ins-group-hints">
                   <div class="hidden md:flex gap-1 items-center ml-2">
@@ -413,7 +413,7 @@
             <label data-i18n="extract.path">Asset folder path</label>
             <input type="text" id="ex-path" placeholder="./gamedata">
           </div>
-          <button class="btn pri" onclick="doExtract()" data-i18n="extract.btn">Extract</button>
+          <button class="btn pri" data-action="doExtract" data-i18n="extract.btn">Extract</button>
           <div class="log" id="ex-log"></div>
         </div>
 

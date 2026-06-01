@@ -53,7 +53,7 @@ const I18n = (function () {
     const menu = document.getElementById('lang-menu');
     if (!menu) return;
     menu.innerHTML = langMeta.map(function (m) {
-      return '<div class="lang-opt" data-lang="' + m.id + '" onclick="I18n.select(\'' + m.id + '\')">'
+      return '<div class="lang-opt" data-lang="' + m.id + '" data-action="langSelect" data-arg="' + m.id + '">'
         + '<div class="lo-info"><span class="lo-name">' + m.shortName + '</span>'
         + '<span class="lo-native">' + m.nativeName + '</span></div></div>';
     }).join('');
@@ -146,8 +146,8 @@ function loadDevOptions() {
         drop.innerHTML = '<div class="drop-hint">' + t('device.none') + '</div>';
       } else {
         drop.innerHTML = keys.map(function (s) {
-          return '<div class="di" onclick="selectDevSerial(\'' + s + '\')">'
-            + '<span class="di-id">' + s + '</span>'
+          return '<div class="di" data-action="selectDevSerial" data-serial="' + escAttr(s) + '">'
+            + '<span class="di-id">' + esc(s) + '</span>'
             + '<div class="di-info"><div class="di-title">' + d[s].width + ' × ' + d[s].height + '</div></div>'
             + '</div>';
         }).join('');
@@ -494,6 +494,7 @@ function pickName(arr, preferFirst) {
   return arr[2] || arr[1] || arr[0] || arr[3] || arr[4] || '';
 }
 function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function escAttr(s) { return esc(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
 function normalizeForSearch(s) {
   // Remove spaces and common punctuation (including full-width and half-width)
@@ -548,7 +549,7 @@ function renderDrop(res) {
   drop.innerHTML = res.map(function (r) {
     const title = pickName(r.song.musicTitle, S.mode === 'pjsk');
     const dh = Object.keys(r.song.difficulty || {}).map(Number).sort().map(function (d) { return '<span class="di-d d-' + diffName(d) + '">' + diffLabel(d) + '</span>'; }).join('');
-    return '<div class="di" onclick="selSong(' + r.id + ')">'
+    return '<div class="di" data-action="selSong" data-arg="' + r.id + '">'
       + '<span class="di-id">#' + r.id + '</span>'
       + '<div class="di-info"><div class="di-title">' + esc(title) + '</div>'
       + (r.band ? '<div class="di-band">' + esc(r.band) + '</div>' : '')
@@ -876,7 +877,7 @@ function loadDevices() {
     S.devices = d || {};
     const list = document.getElementById('dev-list');
     if (!d || !Object.keys(d).length) { list.innerHTML = '<div style="font-size:12px;color:var(--hint)">' + t('device.none') + '</div>'; return; }
-    list.innerHTML = Object.entries(d).map(function (e) { return '<div class="dev-row"><span class="dev-s">' + e[0] + '</span><span>' + e[1].width + ' × ' + e[1].height + '</span><button class="btn-del" onclick="deleteDevice(\'' + e[0] + '\')">' + t('settings.device.delete') + '</button></div>'; }).join('');
+    list.innerHTML = Object.entries(d).map(function (e) { return '<div class="dev-row"><span class="dev-s">' + esc(e[0]) + '</span><span>' + e[1].width + ' × ' + e[1].height + '</span><button class="btn-del" data-action="deleteDevice" data-serial="' + escAttr(e[0]) + '">' + t('settings.device.delete') + '</button></div>'; }).join('');
   });
 }
 function saveDevice() {
@@ -976,44 +977,41 @@ updateDiffLabels();
 resetAdvanced();
 loadDevices();
 
-// ==========================================
-// expose functions to global scope for HTML onclick handlers
-// ==========================================
-Object.assign(window, {
-  I18n,
-  toggleLangMenu,
-  toggleTheme,
-  nav,
-  navToSearch,
-  killAdbServer,
-  autoDetectDevice,
-  setMode,
-  setBackend,
-  setOrient,
-  setDiff,
-  clearSong,
-  onQInput,
-  onQKey,
-  onQFocus,
-  clearQ,
-  onManualId,
-  submitRun,
-  apiStart,
-  apiStop,
-  adj,
-  resetOff,
-  saveDevice,
-  deleteDevice,
-  onJitter,
-  onGreatCountInput,
-  onAdvanced,
-  resetAdvanced,
-  doExtract,
-  toggleDevDrop,
-  loadDevices,
-  selectDevSerial,
-  selSong
-});
+// ══ event delegation ═══════════════════════════════════════
+// One set of delegated listeners replaces the old inline on* attributes and
+// the window-global exposure. Markup opts in via data-action / data-oninput /
+// data-onkeydown / data-onfocus, with an optional data-arg payload. Handlers
+// receive (arg, element, event).
+const ACTIONS = {
+  toggleLangMenu, toggleTheme, navToSearch, killAdbServer, autoDetectDevice,
+  clearSong, clearQ, submitRun, apiStart, apiStop, resetOff, resetAdvanced,
+  doExtract, saveDevice, onQInput, onQFocus, onManualId, onGreatCountInput,
+  nav: function (arg) { nav(arg); },
+  setMode: function (arg) { setMode(arg); },
+  setBackend: function (arg) { setBackend(arg); },
+  setOrient: function (arg) { setOrient(arg); },
+  setDiff: function (arg) { setDiff(parseInt(arg)); },
+  adj: function (arg) { adj(parseInt(arg)); },
+  onJitter: function (arg) { onJitter(arg); },
+  onAdvanced: function (arg) { onAdvanced(arg); },
+  langSelect: function (arg) { I18n.select(arg); },
+  selSong: function (arg) { selSong(parseInt(arg)); },
+  selectDevSerial: function (arg, el) { selectDevSerial(el.dataset.serial); },
+  deleteDevice: function (arg, el) { deleteDevice(el.dataset.serial); },
+  toggleDevDrop: function (arg, el, e) { toggleDevDrop(e); },
+  onQKey: function (arg, el, e) { onQKey(e); },
+};
+
+function dispatch(attr, e) {
+  const el = e.target.closest('[' + attr + ']');
+  if (!el) return;
+  const fn = ACTIONS[el.getAttribute(attr)];
+  if (fn) fn(el.dataset.arg, el, e);
+}
+document.addEventListener('click', function (e) { dispatch('data-action', e); });
+document.addEventListener('input', function (e) { dispatch('data-oninput', e); });
+document.addEventListener('keydown', function (e) { dispatch('data-onkeydown', e); });
+document.addEventListener('focusin', function (e) { dispatch('data-onfocus', e); });
 
 
 // ══ Development mode ════════════════════════════════
