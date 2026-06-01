@@ -216,6 +216,8 @@ var DN_PJSK = ['easy', 'normal', 'hard', 'expert', 'master', 'append'];
 var DL_BANG = ['EASY', 'NORMAL', 'HARD', 'EXPERT', 'SPECIAL'];
 var DL_PJSK = ['EASY', 'NORMAL', 'HARD', 'EXPERT', 'MASTER', 'APPEND'];
 var DOT_CLS = { 1: 'ready', 2: 'playing', 3: 'done', 4: 'error' };
+var STATE_MAP = { 0: 'state.idle', 1: 'state.ready.full', 2: 'state.playing.full', 3: 'state.done.full', 4: 'state.error.full' };
+var DIFF_COLORS = { easy: '#5ba3e0', normal: '#7ab84a', hard: '#d4921e', expert: '#e06060', special: '#9b95e0', append: '#4f8ff7' };
 
 function diffName(i) {
   var dn = S.mode === 'pjsk' ? DN_PJSK : DN_BANG;
@@ -238,8 +240,7 @@ function updateDiffLabels() {
 }
 
 function updateDynamicTexts() {
-  var stateMap = { 0: 'state.idle', 1: 'state.ready.full', 2: 'state.playing.full', 3: 'state.done.full', 4: 'state.error.full' };
-  var txt = t(stateMap[S.state] || 'state.idle');
+  var txt = t(STATE_MAP[S.state] || 'state.idle');
   var e1 = document.getElementById('np-state-txt'), e2 = document.getElementById('pn-state-label');
   if (e1) e1.textContent = txt; if (e2) e2.textContent = txt;
   var btn = document.getElementById('btn-start');
@@ -514,12 +515,18 @@ function doSearch(q) {
     Object.keys(db.songs).forEach(function (sid) {
       var id = parseInt(sid), song = db.songs[sid];
       if (!song || !song.musicTitle) return;
-      var names = (song.__searchNames && song.__searchNames.length) ? song.__searchNames : song.musicTitle;
-      var hit = names.some(function (n) {
-        if (!n) return false;
-        var low = String(n).toLowerCase();
-        var lowNorm = normalizeForSearch(n);
-        return low.indexOf(ql) >= 0 || (qc && lowNorm.indexOf(qc) >= 0);
+      // Cache the lowercased / normalized search keys per song so they are
+      // computed once instead of on every keystroke across the whole library.
+      var si = song.__si;
+      if (!si) {
+        var names = (song.__searchNames && song.__searchNames.length) ? song.__searchNames : song.musicTitle;
+        si = song.__si = (names || []).reduce(function (acc, n) {
+          if (n) acc.push([String(n).toLowerCase(), normalizeForSearch(n)]);
+          return acc;
+        }, []);
+      }
+      var hit = si.some(function (e) {
+        return e[0].indexOf(ql) >= 0 || (qc && e[1].indexOf(qc) >= 0);
       });
       if (!hit) return;
       var band = db.bands[song.bandId];
@@ -635,8 +642,7 @@ function updateUI(d) {
     deck.classList.toggle('playing-glow', st === 2);
   }
   
-  var stateMap = { 0: 'state.idle', 1: 'state.ready.full', 2: 'state.playing.full', 3: 'state.done.full', 4: 'state.error.full' };
-  var txt = t(stateMap[st] || 'state.idle');
+  var txt = t(STATE_MAP[st] || 'state.idle');
   document.getElementById('np-state-txt').textContent = txt;
   document.getElementById('pn-state-label').textContent = txt;
   document.getElementById('ov').textContent = d.offset || 0;
@@ -690,16 +696,8 @@ function normalizeDiffKey(diff) {
 }
 
 function getDiffThemeColor(diff) {
-  var diffColors = {
-    easy: '#5ba3e0',
-    normal: '#7ab84a',
-    hard: '#d4921e',
-    expert: '#e06060',
-    special: '#9b95e0',
-    append: '#4f8ff7'
-  };
   var key = normalizeDiffKey(diff);
-  return diffColors[key] || '#3b82f6';
+  return DIFF_COLORS[key] || '#3b82f6';
 }
 
 function applyJacketColor(themeColor) {
