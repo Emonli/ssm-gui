@@ -110,15 +110,8 @@ func runGUI(conf *config.Config) {
 			var chartText []byte
 			var err error
 			if chartPath == "" {
-				var pathResults []string
-				if pjskMode {
-					pathResults, err = filepath.Glob(filepath.Join("./assets/sekai/assetbundle/resources/startapp/music/music_score/",
-						fmt.Sprintf("%04d_01/%s.txt", songID, difficulty)))
-				} else {
-					pathResults, err = filepath.Glob(filepath.Join("./assets/star/forassetbundle/startapp/musicscore/",
-						fmt.Sprintf("musicscore*/%03d/*_%s.txt", songID, difficulty)))
-				}
-				if err != nil || len(pathResults) < 1 {
+				pathResults, globErr := findMusicscorePath(pjskMode, songID, difficulty)
+				if globErr != nil || len(pathResults) < 1 {
 					srv.SetError("Musicscore not found. Please extract assets first or use a custom chart path.")
 					return
 				}
@@ -289,14 +282,7 @@ func runGUI(conf *config.Config) {
 	}
 
 	srv.OnExtractRequest = func(path string) error {
-		_, err := Extract(path, func(p string) bool {
-			if strings.HasSuffix(p, ".acb.bytes") || !strings.Contains(p, "startapp") {
-				return false
-			}
-			return strings.Contains(p, "musicscore/") || strings.Contains(p, "music_score/") ||
-				strings.Contains(p, "musicjacket/") || strings.Contains(p, "jacket/") ||
-				strings.Contains(p, "ingameskin")
-		})
+		_, err := Extract(path, extractAssetFilter)
 		return err
 	}
 
@@ -686,6 +672,28 @@ func getJudgeLineCalculator() stage.JudgeLinePositionCalculator {
 	return stage.BanGJudgeLinePos
 }
 
+// findMusicscorePath returns the chart .txt files matching a song id and
+// difficulty under the extracted assets directory for the given game mode.
+func findMusicscorePath(pjsk bool, songID int, difficulty string) ([]string, error) {
+	if pjsk {
+		return filepath.Glob(filepath.Join("./assets/sekai/assetbundle/resources/startapp/music/music_score/",
+			fmt.Sprintf("%04d_01/%s.txt", songID, difficulty)))
+	}
+	return filepath.Glob(filepath.Join("./assets/star/forassetbundle/startapp/musicscore/",
+		fmt.Sprintf("musicscore*/%03d/*_%s.txt", songID, difficulty)))
+}
+
+// extractAssetFilter selects which asset-bundle paths Extract should unpack:
+// chart, jacket and in-game skin assets under startapp (audio .acb excluded).
+func extractAssetFilter(p string) bool {
+	if strings.HasSuffix(p, ".acb.bytes") || !strings.Contains(p, "startapp") {
+		return false
+	}
+	return strings.Contains(p, "musicscore/") || strings.Contains(p, "music_score/") ||
+		strings.Contains(p, "musicjacket/") || strings.Contains(p, "jacket/") ||
+		strings.Contains(p, "ingameskin")
+}
+
 func (t *tui) adbBackend(conf *config.Config, rawEvents common.RawVirtualEvents) {
 	checkOrDownload()
 	if err := adb.StartADBServer("localhost", 5037); err != nil && err != adb.ErrADBServerRunning {
@@ -806,14 +814,7 @@ func main() {
 	// ─── Everything below is the same as the original version ───
 
 	if extract != "" {
-		db, err := Extract(extract, func(path string) bool {
-			if strings.HasSuffix(path, ".acb.bytes") || !strings.Contains(path, "startapp") {
-				return false
-			}
-			return strings.Contains(path, "musicscore/") || strings.Contains(path, "music_score/") ||
-				strings.Contains(path, "musicjacket/") || strings.Contains(path, "jacket/") ||
-				strings.Contains(path, "ingameskin")
-		})
+		db, err := Extract(extract, extractAssetFilter)
 		if err != nil {
 			log.Die(err)
 		}
@@ -856,16 +857,9 @@ func main() {
 
 	var chartText []byte
 	if chartPath == "" {
-		var pathResults []string
-		if pjskMode {
-			pathResults, err = filepath.Glob(filepath.Join("./assets/sekai/assetbundle/resources/startapp/music/music_score/",
-				fmt.Sprintf("%04d_01/%s.txt", songID, difficulty)))
-		} else {
-			pathResults, err = filepath.Glob(filepath.Join("./assets/star/forassetbundle/startapp/musicscore/",
-				fmt.Sprintf("musicscore*/%03d/*_%s.txt", songID, difficulty)))
-		}
-		if err != nil {
-			log.Die("Failed to find musicscore file:", err)
+		pathResults, globErr := findMusicscorePath(pjskMode, songID, difficulty)
+		if globErr != nil {
+			log.Die("Failed to find musicscore file:", globErr)
 		}
 		if len(pathResults) < 1 {
 			log.Die("Musicscore not found")
