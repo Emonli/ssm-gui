@@ -386,18 +386,11 @@ function normalizeSongDB(payload) {
     return { songs: {}, bands: {}, artists: {} };
   }
 
-  function normalizeSearchText(s) {
-    // Normalize for search: lowercase and remove common punctuation (including CJK and full-width symbols)
-    return String(s || '')
-      .toLowerCase()
-      .replace(/[\s\-_.,:;!?\[\]{}'"""~`・，。；！？「」『』（）]/g, '');
-  }
-
   function addSearchName(song, name) {
     if (!song || !name) return;
     if (!song.__searchNames) song.__searchNames = [];
     if (song.__searchNames.indexOf(name) < 0) song.__searchNames.push(name);
-    const compact = normalizeSearchText(name);
+    const compact = normalizeForSearch(name);
     if (compact && song.__searchNames.indexOf(compact) < 0) song.__searchNames.push(compact);
   }
 
@@ -611,8 +604,19 @@ function log(boxId, msg, type) {
 }
 
 // ══ SSE ════════════════════════════════════════════════════
+let _sseDown = false;
 const es = new EventSource('/api/events');
-es.onmessage = function (e) { const d = JSON.parse(e.data); S.state = d.state; S.offset = d.offset || 0; updateUI(d); };
+es.onmessage = function (e) {
+  let d;
+  try { d = JSON.parse(e.data); } catch (err) { return; }  // ignore malformed frames
+  if (_sseDown) { _sseDown = false; log('play-log', t('log.sse.reconnect'), 'ok'); }
+  S.state = d.state; S.offset = d.offset || 0; updateUI(d);
+};
+es.onerror = function () {
+  // EventSource auto-reconnects; surface the dropped connection once so the
+  // UI doesn't look frozen when the backend restarts.
+  if (!_sseDown) { _sseDown = true; log('play-log', t('log.sse.lost'), 'err'); }
+};
 
 function updateUI(d) {
   const st = d.state, dotCls = DOT_CLS[st] || '';
@@ -662,7 +666,7 @@ function updateUI(d) {
 		const greatSig = String(d.greatReq) + '/' + String(d.greatApply);
 		if (greatSig !== S._lastGreatSig) {
 			S._lastGreatSig = greatSig;
-			log('play-log', 'Great applied: ' + d.greatApply + ' / requested: ' + d.greatReq, d.greatApply > 0 ? 'ok' : 'info');
+			log('play-log', t('log.great.pre') + d.greatApply + t('log.great.mid') + d.greatReq, d.greatApply > 0 ? 'ok' : 'info');
 		}
 	}
 }
@@ -808,7 +812,7 @@ function submitRun() {
       if (savedSerials.length > 0) {
         ds = savedSerials[0];
         dsInput.value = ds;
-        log('song-log', 'No serial provided. Auto-selected: ' + ds, 'info');
+        log('song-log', t('log.serial.auto') + ds, 'info');
       }
     }
 
@@ -816,10 +820,10 @@ function submitRun() {
 
   if (!ds || !isConfigured) {
     const errorMsg = !ds
-      ? 'Device Serial is required!'
-      : 'Device [' + ds + '] is not configured with resolution!';
+      ? t('log.serial.required')
+      : t('log.serial.unconfigured.pre') + ds + t('log.serial.unconfigured.post');
 
-    log('song-log', errorMsg + ' Redirecting...', 'err');
+    log('song-log', errorMsg + t('log.redirecting'), 'err');
 
     if (ds) document.getElementById('dc-s').value = ds;
 
@@ -888,32 +892,32 @@ function deleteDevice(serial) {
 
 // ══ ADB & Device Utilities ════════════════════════════════
 function killAdbServer() {
-  log('song-log', 'Killing ADB server...', 'info');
+  log('song-log', t('log.adb.killing'), 'info');
   fetch('/api/kill-adb', { method: 'POST' })
     .then(function (r) {
-      if (r.ok) log('song-log', 'ADB server killed successfully.', 'ok');
-      else log('song-log', 'Failed to kill ADB.', 'err');
+      if (r.ok) log('song-log', t('log.adb.killed'), 'ok');
+      else log('song-log', t('log.adb.kill.fail'), 'err');
     })
-    .catch(function (e) { log('song-log', 'Network error: ' + e, 'err'); });
+    .catch(function (e) { log('song-log', t('log.conn.fail') + e, 'err'); });
 }
 
 function autoDetectDevice() {
   const dsInput = document.getElementById('dev-serial');
-  dsInput.placeholder = "Detecting...";
+  dsInput.placeholder = t('log.detect.detecting');
 
   fetch('/api/detect-adb')
     .then(function (r) { return r.json(); })
     .then(function (d) {
       if (d.serial) {
         dsInput.value = d.serial;
-        log('song-log', 'Device detected: ' + d.serial, 'ok');
+        log('song-log', t('log.detect.found') + d.serial, 'ok');
       } else {
-        log('song-log', 'No device found.', 'err');
+        log('song-log', t('log.detect.none'), 'err');
         dsInput.placeholder = "";
       }
     })
     .catch(function (e) {
-      log('song-log', 'Failed to auto-detect.', 'err');
+      log('song-log', t('log.detect.fail'), 'err');
       dsInput.placeholder = "";
     });
 }
