@@ -5,4 +5,9 @@ export default defineConfig({
   plugins: [
     tailwindcss(),
   ],
+  test: {
+    environment: 'jsdom',
+    css: false,
+    include: ['src/**/*.test.js'],
+  },
 })
