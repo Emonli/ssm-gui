@@ -182,15 +182,17 @@ function getGreatCountRaw() {
   return raw;
 }
 
+// Set the slider's --val fill percentage (used by the track gradient).
+function setSliderFill(sld) {
+  const min = +sld.min || 0, max = +sld.max || 100;
+  sld.style.setProperty('--val', ((+sld.value - min) / (max - min)) * 100 + '%');
+}
+
 function renderJitter(key) {
   const raw = key === 'grCount' ? getGreatCountRaw() : parseInt(document.getElementById('sld-' + key).value);
   const el = document.getElementById('val-' + key);
 
-  if (key !== 'grCount') {
-    const sld = document.getElementById('sld-' + key);
-    const pct = ((raw - (sld.min || 0)) / ((sld.max || 100) - (sld.min || 0))) * 100;
-    sld.style.setProperty('--val', pct + '%');
-  }
+  if (key !== 'grCount') setSliderFill(document.getElementById('sld-' + key));
 
   if (key !== 'grOffset' && raw === 0) { el.textContent = 'OFF'; el.style.color = 'var(--hint)'; return; }
   el.style.color = 'var(--blue)';
@@ -691,8 +693,10 @@ function updateUI(d) {
   document.getElementById('pn-state-label').textContent = txt;
   document.getElementById('ov').textContent = d.offset || 0;
   const btn = document.getElementById('btn-start');
-  if (st === 1) { btn.disabled = false; btn.classList.add('rdy'); btn.innerHTML = t('play.start.btn'); }
-  else { btn.disabled = true; btn.classList.remove('rdy'); btn.innerHTML = t('play.start.btn'); }
+  // Label is set via data-i18n (and updateDynamicTexts on language change), so
+  // updateUI only flips the ready/disabled state per SSE frame.
+  btn.disabled = st !== 1;
+  btn.classList.toggle('rdy', st === 1);
   if (d.nowPlaying && (d.nowPlaying.songId > 0 || d.nowPlaying.title)) renderNowPlaying(d.nowPlaying);
   if (st !== S._lastLogState) {
     S._lastLogState = st;
@@ -975,9 +979,7 @@ function onAdvanced(key) {
   const raw = parseInt(document.getElementById('sld-' + key).value);
   const el = document.getElementById('val-' + key);
 
-  const sld = document.getElementById('sld-' + key);
-  const pct = ((raw - (sld.min || 0)) / ((sld.max || 100) - (sld.min || 0))) * 100;
-  sld.style.setProperty('--val', pct + '%');
+  setSliderFill(document.getElementById('sld-' + key));
 
   if (key === 'flickFactor') {
     el.textContent = (raw / 100).toFixed(2);
