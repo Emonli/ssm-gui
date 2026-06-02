@@ -244,6 +244,10 @@ func runGUI(conf *config.Config) {
 					deviceSerial = serials[0]
 				}
 				dc := conf.Get(deviceSerial)
+				if dc == nil {
+					srv.SetError(fmt.Sprintf("Device [%s] not configured. Please add it in Settings first.", deviceSerial))
+					return
+				}
 				hidCtrl := controllers.NewHIDController(dc)
 				if err := hidCtrl.Open(); err != nil {
 					srv.SetError("Failed to initialize HID: " + err.Error())
@@ -252,6 +256,11 @@ func runGUI(conf *config.Config) {
 				defer hidCtrl.Close()
 				events = hidCtrl.Preprocess(rawEvents, direction == "right", getJudgeLineCalculator())
 				ctrl = hidCtrl
+			}
+
+			if len(events) == 0 {
+				srv.SetError("No playable events were generated for this chart.")
+				return
 			}
 
 			np := gui.NowPlaying{
