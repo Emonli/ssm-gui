@@ -263,7 +263,7 @@ func (s *Server) handleOffset(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (s *Server) handleStop(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleRestart(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -271,6 +271,7 @@ func (s *Server) handleStop(w http.ResponseWriter, r *http.Request) {
 
 	s.mu.Lock()
 	st := s.state
+	req := s.lastRunReq
 	s.mu.Unlock()
 
 	if st != StatePlaying && st != StateDone {
@@ -278,9 +279,8 @@ func (s *Server) handleStop(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Cancel the in-flight playback and go back to Idle. Stop means stop: we
-	// no longer re-issue the run request (which used to re-arm the same song
-	// back to Ready and felt like a restart). To play again, load a song.
+	// Interrupt the in-flight playback, then re-prepare the same song back to
+	// Ready so the user can re-sync and press Start again without re-loading.
 	s.mu.Lock()
 	oldStop := s.stopCh
 	s.mu.Unlock()
@@ -294,6 +294,10 @@ func (s *Server) handleStop(w http.ResponseWriter, r *http.Request) {
 	s.state = StateIdle
 	s.mu.Unlock()
 	s.broadcastState()
+
+	if s.OnRunRequest != nil {
+		go s.OnRunRequest(req)
+	}
 
 	w.WriteHeader(http.StatusOK)
 }
@@ -579,8 +583,9 @@ done:
 		s.broadcastState()
 
 		go func() {
-			// Show "Done" briefly, then return to Idle. We no longer re-arm the
-			// same run afterwards: finishing means finished, mirroring Stop.
+			// Show "Done" briefly, then re-prepare the same song back to Ready
+			// so it can be replayed with Start (no re-load needed), matching the
+			// Restart button.
 			time.Sleep(1000 * time.Millisecond)
 
 			s.mu.Lock()
@@ -591,6 +596,10 @@ done:
 			s.state = StateIdle
 			s.mu.Unlock()
 			s.broadcastState()
+
+			if s.OnRunRequest != nil {
+				s.OnRunRequest(req)
+			}
 		}()
 	} else {
 		s.mu.Unlock()
@@ -658,7 +667,7 @@ func (s *Server) Start() (string, error) {
 	mux.HandleFunc("/api/run", s.handleRun)
 	mux.HandleFunc("/api/start", s.handleStart)
 	mux.HandleFunc("/api/offset", s.handleOffset)
-	mux.HandleFunc("/api/stop", s.handleStop)
+	mux.HandleFunc("/api/restart", s.handleRestart)
 	mux.HandleFunc("/api/device", s.handleDevice)
 	mux.HandleFunc("/api/extract", s.handleExtract)
 	mux.HandleFunc("/api/songdb", s.handleSongDB)

@@ -35,7 +35,7 @@ This project is an extended branch based on the core architecture of [kvarenzn/s
 ### ▶️ Playback Control Panel
 ![Control Panel](/imgs/paly_page.png "Control Panel")
 - **Now Playing card** — jacket art, song title, band, difficulty, all in one glance
-- **Stop instantly** — hit Stop to halt playback and return to idle; load a song again to play
+- **Restart instantly** — hit Restart to re-arm the current song; press Start again without re-loading anything
 - **Offset adjustment** — fine-tune timing on the fly with keyboard shortcuts
 
 
