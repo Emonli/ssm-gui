@@ -574,14 +574,14 @@ html[data-theme='light'] .pd-offset-val small {
   color: #5f6f86;
 }
 
-html[data-theme='light'] .pd-btn-stop {
+html[data-theme='light'] .pd-btn-restart {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(232, 240, 255, 0.97) 100%) !important;
   border-color: rgba(37, 99, 235, 0.26) !important;
   color: #dc2626 !important;
   box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12) !important;
 }
 
-html[data-theme='light'] .pd-btn-stop:hover {
+html[data-theme='light'] .pd-btn-restart:hover {
   background: linear-gradient(180deg, #fff5f5 0%, #ffe4e6 100%) !important;
   border-color: rgba(239, 68, 68, 0.3) !important;
   color: #b91c1c !important;
@@ -1727,17 +1727,19 @@ html[data-theme='light'] .sel-bar .sb-title {
 }
 
 /* Circular stop button. */
-.pd-btn-stop {
+.pd-btn-restart {
   @apply w-16 h-16 rounded-full flex items-center justify-center transition-all cursor-pointer shrink-0;
   /* Neutral gray by default, solid red on hover for hardware-like feedback. */
   @apply border border-[#3f3f46] bg-[#27272a] text-red-500 hover:bg-red-600 hover:text-white hover:border-red-400 active:scale-90;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
 }
 
-/* Draw the stop square with CSS for exact centering, independent of font metrics. */
-.pd-btn-stop::after {
-  content: '';
-  @apply w-[18px] h-[18px] bg-current rounded-[3px];
+/* Restart glyph (circular arrow), sized independent of font metrics. */
+.pd-btn-restart::after {
+  content: '↻';
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 /* Pill-shaped start button. */
@@ -1988,7 +1990,7 @@ html.is-append-diff .pd-jacket-wrap.playing {
 
 
 /* --- STOP 按鈕 hover 震動 --- */
-.pd-btn-stop:hover {
+.pd-btn-restart:hover {
   animation: stopShake 0.3s ease;
 }
 @keyframes stopShake {
@@ -2146,14 +2148,13 @@ kbd {
     gap: 10px;
   }
 
-  .pd-btn-stop {
+  .pd-btn-restart {
     width: 52px;
     height: 52px;
   }
 
-  .pd-btn-stop::after {
-    width: 14px;
-    height: 14px;
+  .pd-btn-restart::after {
+    font-size: 24px;
   }
 
   .pd-btn-start {

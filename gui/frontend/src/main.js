@@ -53,7 +53,7 @@ const I18n = (function () {
     const menu = document.getElementById('lang-menu');
     if (!menu) return;
     menu.innerHTML = langMeta.map(function (m) {
-      return '<div class="lang-opt" data-lang="' + m.id + '" onclick="I18n.select(\'' + m.id + '\')">'
+      return '<div class="lang-opt" data-lang="' + m.id + '" data-action="langSelect" data-arg="' + m.id + '">'
         + '<div class="lo-info"><span class="lo-name">' + m.shortName + '</span>'
         + '<span class="lo-native">' + m.nativeName + '</span></div></div>';
     }).join('');
@@ -146,8 +146,8 @@ function loadDevOptions() {
         drop.innerHTML = '<div class="drop-hint">' + t('device.none') + '</div>';
       } else {
         drop.innerHTML = keys.map(function (s) {
-          return '<div class="di" onclick="selectDevSerial(\'' + s + '\')">'
-            + '<span class="di-id">' + s + '</span>'
+          return '<div class="di" data-action="selectDevSerial" data-serial="' + escAttr(s) + '">'
+            + '<span class="di-id">' + esc(s) + '</span>'
             + '<div class="di-info"><div class="di-title">' + d[s].width + ' × ' + d[s].height + '</div></div>'
             + '</div>';
         }).join('');
@@ -182,15 +182,17 @@ function getGreatCountRaw() {
   return raw;
 }
 
+// Set the slider's --val fill percentage (used by the track gradient).
+function setSliderFill(sld) {
+  const min = +sld.min || 0, max = +sld.max || 100;
+  sld.style.setProperty('--val', ((+sld.value - min) / (max - min)) * 100 + '%');
+}
+
 function renderJitter(key) {
   const raw = key === 'grCount' ? getGreatCountRaw() : parseInt(document.getElementById('sld-' + key).value);
   const el = document.getElementById('val-' + key);
 
-  if (key !== 'grCount') {
-    const sld = document.getElementById('sld-' + key);
-    const pct = ((raw - (sld.min || 0)) / ((sld.max || 100) - (sld.min || 0))) * 100;
-    sld.style.setProperty('--val', pct + '%');
-  }
+  if (key !== 'grCount') setSliderFill(document.getElementById('sld-' + key));
 
   if (key !== 'grOffset' && raw === 0) { el.textContent = 'OFF'; el.style.color = 'var(--hint)'; return; }
   el.style.color = 'var(--blue)';
@@ -341,7 +343,7 @@ function onQInput() {
 function onQFocus() { const v = document.getElementById('q').value.trim(); if (v) doSearch(v); }
 function clearQ() { document.getElementById('q').value = ''; document.getElementById('sc').style.display = 'none'; closeDrop(); }
 
-function loadDB(cb) {
+function loadDB(cb, onErr) {
   if (S.db) { cb(S.db); return; }
   fetch('/api/songdb?mode=' + S.mode)
     .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
@@ -349,7 +351,17 @@ function loadDB(cb) {
       S.db = normalizeSongDB(d);
       cb(S.db);
     })
-    .catch(function (e) { log('song-log', t('log.conn.fail') + e, 'err'); });
+    .catch(function (e) {
+      log('song-log', t('log.conn.fail') + e, 'err');
+      if (onErr) onErr(e);
+    });
+}
+
+// Show a single-line hint inside the search dropdown (loading / error / etc.).
+function showDropHint(text) {
+  const drop = document.getElementById('drop');
+  drop.innerHTML = '<div class="drop-hint">' + esc(text) + '</div>';
+  drop.classList.add('open');
 }
 
 function normalizeSong(rawSong) {
@@ -386,18 +398,11 @@ function normalizeSongDB(payload) {
     return { songs: {}, bands: {}, artists: {} };
   }
 
-  function normalizeSearchText(s) {
-    // Normalize for search: lowercase and remove common punctuation (including CJK and full-width symbols)
-    return String(s || '')
-      .toLowerCase()
-      .replace(/[\s\-_.,:;!?\[\]{}'"""~`・，。；！？「」『』（）]/g, '');
-  }
-
   function addSearchName(song, name) {
     if (!song || !name) return;
     if (!song.__searchNames) song.__searchNames = [];
     if (song.__searchNames.indexOf(name) < 0) song.__searchNames.push(name);
-    const compact = normalizeSearchText(name);
+    const compact = normalizeForSearch(name);
     if (compact && song.__searchNames.indexOf(compact) < 0) song.__searchNames.push(compact);
   }
 
@@ -501,6 +506,7 @@ function pickName(arr, preferFirst) {
   return arr[2] || arr[1] || arr[0] || arr[3] || arr[4] || '';
 }
 function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function escAttr(s) { return esc(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
 function normalizeForSearch(s) {
   // Remove spaces and common punctuation (including full-width and half-width)
@@ -510,6 +516,9 @@ function normalizeForSearch(s) {
 }
 
 function doSearch(q) {
+  // First search has to fetch the (large) song DB; show feedback instead of a
+  // dead-looking empty box, and surface failures in the dropdown itself.
+  if (!S.db) showDropHint(t('drop.loading'));
   loadDB(function (db) {
     const ql = q.toLowerCase(), qc = normalizeForSearch(q), res = [];
     Object.keys(db.songs).forEach(function (sid) {
@@ -546,6 +555,8 @@ function doSearch(q) {
       return a.id - b.id;
     });
     renderDrop(res.slice(0, 40));
+  }, function () {
+    showDropHint(t('drop.error'));
   });
 }
 
@@ -555,7 +566,7 @@ function renderDrop(res) {
   drop.innerHTML = res.map(function (r) {
     const title = pickName(r.song.musicTitle, S.mode === 'pjsk');
     const dh = Object.keys(r.song.difficulty || {}).map(Number).sort().map(function (d) { return '<span class="di-d d-' + diffName(d) + '">' + diffLabel(d) + '</span>'; }).join('');
-    return '<div class="di" onclick="selSong(' + r.id + ')">'
+    return '<div class="di" data-action="selSong" data-arg="' + r.id + '">'
       + '<span class="di-id">#' + r.id + '</span>'
       + '<div class="di-info"><div class="di-title">' + esc(title) + '</div>'
       + (r.band ? '<div class="di-band">' + esc(r.band) + '</div>' : '')
@@ -599,20 +610,55 @@ function clearSong() {
 }
 function onManualId() {
   const v = parseInt(document.getElementById('song-id').value) || 0;
-  if (v > 0) { S.songId = v; S.songData = null; document.getElementById('sb-id').textContent = '#' + v; document.getElementById('sb-title').textContent = t('manual.title'); document.getElementById('sel-bar').classList.add('show'); setDiffAvail(null); }
+  if (v > 0) {
+    // If the song DB is already loaded and knows this id, surface its real
+    // title and available difficulties right away instead of waiting for the
+    // backend to reject an unavailable difficulty after Load.
+    const song = (S.db && S.db.songs) ? S.db.songs[v] : null;
+    S.songId = v; S.songData = song || null;
+    document.getElementById('sb-id').textContent = '#' + v;
+    document.getElementById('sb-title').textContent = song ? pickName(song.musicTitle, S.mode === 'pjsk') : t('manual.title');
+    document.getElementById('sel-bar').classList.add('show');
+    if (song) {
+      const avail = Object.keys(song.difficulty || {}).map(Number).sort();
+      setDiffAvail(avail.length ? avail : null);
+    } else {
+      setDiffAvail(null);
+    }
+  } else {
+    // Field was cleared — drop the selection so a stale id isn't submitted.
+    S.songId = 0; S.songData = null;
+    document.getElementById('sel-bar').classList.remove('show');
+    setDiffAvail(null);
+  }
 }
 
 // ══ log ════════════════════════════════════════════════════
+const LOG_MAX = 200;
 function log(boxId, msg, type) {
   const box = document.getElementById(boxId);
   const l = document.createElement('div'); l.className = 'll ' + (type || '');
   l.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
-  box.appendChild(l); box.scrollTop = box.scrollHeight;
+  box.appendChild(l);
+  // Cap the log so long sessions don't grow the DOM without bound.
+  while (box.childElementCount > LOG_MAX) box.removeChild(box.firstElementChild);
+  box.scrollTop = box.scrollHeight;
 }
 
 // ══ SSE ════════════════════════════════════════════════════
+let _sseDown = false;
 const es = new EventSource('/api/events');
-es.onmessage = function (e) { const d = JSON.parse(e.data); S.state = d.state; S.offset = d.offset || 0; updateUI(d); };
+es.onmessage = function (e) {
+  let d;
+  try { d = JSON.parse(e.data); } catch (err) { return; }  // ignore malformed frames
+  if (_sseDown) { _sseDown = false; log('play-log', t('log.sse.reconnect'), 'ok'); }
+  S.state = d.state; S.offset = d.offset || 0; updateUI(d);
+};
+es.onerror = function () {
+  // EventSource auto-reconnects; surface the dropped connection once so the
+  // UI doesn't look frozen when the backend restarts.
+  if (!_sseDown) { _sseDown = true; log('play-log', t('log.sse.lost'), 'err'); }
+};
 
 function updateUI(d) {
   const st = d.state, dotCls = DOT_CLS[st] || '';
@@ -647,9 +693,11 @@ function updateUI(d) {
   document.getElementById('pn-state-label').textContent = txt;
   document.getElementById('ov').textContent = d.offset || 0;
   const btn = document.getElementById('btn-start');
-  if (st === 1) { btn.disabled = false; btn.classList.add('rdy'); btn.innerHTML = t('play.start.btn'); }
-  else { btn.disabled = true; btn.classList.remove('rdy'); btn.innerHTML = t('play.start.btn'); }
-  if (d.nowPlaying && (d.nowPlaying.songId > 0 || d.nowPlaying.title)) { showNP(d.nowPlaying); updatePlayCard(d.nowPlaying); }
+  // Label is set via data-i18n (and updateDynamicTexts on language change), so
+  // updateUI only flips the ready/disabled state per SSE frame.
+  btn.disabled = st !== 1;
+  btn.classList.toggle('rdy', st === 1);
+  if (d.nowPlaying && (d.nowPlaying.songId > 0 || d.nowPlaying.title)) renderNowPlaying(d.nowPlaying);
   if (st !== S._lastLogState) {
     S._lastLogState = st;
     if (st === 1) log('play-log', t('log.ready'), 'info');
@@ -662,30 +710,59 @@ function updateUI(d) {
 		const greatSig = String(d.greatReq) + '/' + String(d.greatApply);
 		if (greatSig !== S._lastGreatSig) {
 			S._lastGreatSig = greatSig;
-			log('play-log', 'Great applied: ' + d.greatApply + ' / requested: ' + d.greatReq, d.greatApply > 0 ? 'ok' : 'info');
+			log('play-log', t('log.great.pre') + d.greatApply + t('log.great.mid') + d.greatReq, d.greatApply > 0 ? 'ok' : 'info');
 		}
 	}
 }
 
-function showNP(np) {
-  document.getElementById('np-card').style.display = 'block';
-  const img = document.getElementById('np-img');
+// Paint a jacket <img> with multi-URL fallback, toggling its "no artwork"
+// placeholder sibling.
+function paintJacket(imgId, noId, np) {
+  const img = document.getElementById(imgId);
   if (np.jacketUrl) {
     setImageWithFallback(img, np.jacketUrls && np.jacketUrls.length ? np.jacketUrls : [np.jacketUrl]);
     img.style.display = 'block';
-    document.getElementById('np-no').style.display = 'none';
+    document.getElementById(noId).style.display = 'none';
   } else {
     img.onerror = null;
     img.removeAttribute('src');
     img.style.display = 'none';
-    document.getElementById('np-no').style.display = 'flex';
+    document.getElementById(noId).style.display = 'flex';
   }
+}
+
+function setDiffBadge(id, rawDiff) {
+  const el = document.getElementById(id);
+  el.className = 'np-diff d-' + normalizeDiffKey(rawDiff || 'expert');
+  el.textContent = String(rawDiff || '').toUpperCase();
+}
+
+// Render both the sidebar mini-card and the play-deck card from one NowPlaying
+// payload. Guarded by a signature so the per-message SSE stream doesn't re-set
+// the jacket src (which caused reload flicker) or redo DOM work every tick.
+let _npSig = '';
+function renderNowPlaying(np) {
+  const sig = [np.songId, np.title, np.artist, np.diff, np.diffLevel, np.jacketUrl].join('');
+  if (sig === _npSig) return;
+  _npSig = sig;
+
+  // sidebar mini-card
+  document.getElementById('np-card').style.display = 'block';
+  paintJacket('np-img', 'np-no', np);
   document.getElementById('np-title').textContent = np.title || '—';
   document.getElementById('np-artist').textContent = np.artist || '';
-  const npDiffRaw = np.diff || 'expert';
-  const npDiffKey = normalizeDiffKey(npDiffRaw);
-  const db = document.getElementById('np-diff'); db.className = 'np-diff d-' + npDiffKey; db.textContent = String(npDiffRaw || '').toUpperCase();
+  setDiffBadge('np-diff', np.diff);
   document.getElementById('np-lv').textContent = np.diffLevel ? 'Lv.' + np.diffLevel : '';
+
+  // play-deck card
+  document.getElementById('pn-none').style.display = 'none';
+  document.getElementById('pn-loaded').style.display = 'block';
+  paintJacket('pn-img', 'pn-no', np);
+  document.getElementById('pn-title-big').textContent = np.title || '—';
+  document.getElementById('pn-artist-big').textContent = np.artist || '';
+  setDiffBadge('pn-diff-badge', np.diff);
+  document.getElementById('pn-lv-big').textContent = np.diffLevel ? 'Lv.' + np.diffLevel : '';
+  applyJacketColor(getDiffThemeColor(normalizeDiffKey(np.diff || 'expert')));
 }
 
 function normalizeDiffKey(diff) {
@@ -716,29 +793,6 @@ function applyJacketColor(themeColor) {
   // Mirror to root so all descendants and pseudo-elements resolve the same value.
   document.documentElement.style.setProperty('--jacket-color', themeColor);
   document.documentElement.classList.toggle('is-append-diff', themeColor === '#4f8ff7' || themeColor === '#f26ec9');
-}
-
-function updatePlayCard(np) {
-  document.getElementById('pn-none').style.display = 'none'; document.getElementById('pn-loaded').style.display = 'block';
-  const pimg = document.getElementById('pn-img');
-  if (np.jacketUrl) {
-    setImageWithFallback(pimg, np.jacketUrls && np.jacketUrls.length ? np.jacketUrls : [np.jacketUrl]);
-    pimg.style.display = 'block';
-    document.getElementById('pn-no').style.display = 'none';
-  } else {
-    pimg.onerror = null;
-    pimg.removeAttribute('src');
-    pimg.style.display = 'none';
-    document.getElementById('pn-no').style.display = 'flex';
-  }
-  document.getElementById('pn-title-big').textContent = np.title || '—';
-  document.getElementById('pn-artist-big').textContent = np.artist || '';
-  const rawDiff = np.diff || 'expert';
-  const diffKey = normalizeDiffKey(rawDiff);
-  const badge = document.getElementById('pn-diff-badge'); badge.className = 'np-diff d-' + diffKey; badge.textContent = String(rawDiff || '').toUpperCase();
-  document.getElementById('pn-lv-big').textContent = np.diffLevel ? 'Lv.' + np.diffLevel : '';
-  const themeColor = getDiffThemeColor(diffKey);
-  applyJacketColor(themeColor);
 }
 
 function setImageWithFallback(imgEl, urls) {
@@ -808,7 +862,7 @@ function submitRun() {
       if (savedSerials.length > 0) {
         ds = savedSerials[0];
         dsInput.value = ds;
-        log('song-log', 'No serial provided. Auto-selected: ' + ds, 'info');
+        log('song-log', t('log.serial.auto') + ds, 'info');
       }
     }
 
@@ -816,10 +870,10 @@ function submitRun() {
 
   if (!ds || !isConfigured) {
     const errorMsg = !ds
-      ? 'Device Serial is required!'
-      : 'Device [' + ds + '] is not configured with resolution!';
+      ? t('log.serial.required')
+      : t('log.serial.unconfigured.pre') + ds + t('log.serial.unconfigured.post');
 
-    log('song-log', errorMsg + ' Redirecting...', 'err');
+    log('song-log', errorMsg + t('log.redirecting'), 'err');
 
     if (ds) document.getElementById('dc-s').value = ds;
 
@@ -860,7 +914,7 @@ function submitRun() {
 }
 
 function apiStart() { if (S.state !== 1) return; fetch('/api/start', { method: 'POST' }).catch(function (e) { log('play-log', t('log.conn.fail') + e, 'err'); }); }
-function apiStop() { fetch('/api/stop', { method: 'POST' }); }
+function apiRestart() { fetch('/api/restart', { method: 'POST' }); }
 
 let _adjTimer = null, _adjPending = 0;
 function adj(d) { _adjPending += d; clearTimeout(_adjTimer); _adjTimer = setTimeout(function () { if (_adjPending === 0) return; const delta = _adjPending; _adjPending = 0; fetch('/api/offset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ delta: delta }) }); }, 50); }
@@ -872,7 +926,7 @@ function loadDevices() {
     S.devices = d || {};
     const list = document.getElementById('dev-list');
     if (!d || !Object.keys(d).length) { list.innerHTML = '<div style="font-size:12px;color:var(--hint)">' + t('device.none') + '</div>'; return; }
-    list.innerHTML = Object.entries(d).map(function (e) { return '<div class="dev-row"><span class="dev-s">' + e[0] + '</span><span>' + e[1].width + ' × ' + e[1].height + '</span><button class="btn-del" onclick="deleteDevice(\'' + e[0] + '\')">' + t('settings.device.delete') + '</button></div>'; }).join('');
+    list.innerHTML = Object.entries(d).map(function (e) { return '<div class="dev-row"><span class="dev-s">' + esc(e[0]) + '</span><span>' + e[1].width + ' × ' + e[1].height + '</span><button class="btn-del" data-action="deleteDevice" data-serial="' + escAttr(e[0]) + '">' + t('settings.device.delete') + '</button></div>'; }).join('');
   });
 }
 function saveDevice() {
@@ -888,32 +942,32 @@ function deleteDevice(serial) {
 
 // ══ ADB & Device Utilities ════════════════════════════════
 function killAdbServer() {
-  log('song-log', 'Killing ADB server...', 'info');
+  log('song-log', t('log.adb.killing'), 'info');
   fetch('/api/kill-adb', { method: 'POST' })
     .then(function (r) {
-      if (r.ok) log('song-log', 'ADB server killed successfully.', 'ok');
-      else log('song-log', 'Failed to kill ADB.', 'err');
+      if (r.ok) log('song-log', t('log.adb.killed'), 'ok');
+      else log('song-log', t('log.adb.kill.fail'), 'err');
     })
-    .catch(function (e) { log('song-log', 'Network error: ' + e, 'err'); });
+    .catch(function (e) { log('song-log', t('log.conn.fail') + e, 'err'); });
 }
 
 function autoDetectDevice() {
   const dsInput = document.getElementById('dev-serial');
-  dsInput.placeholder = "Detecting...";
+  dsInput.placeholder = t('log.detect.detecting');
 
   fetch('/api/detect-adb')
     .then(function (r) { return r.json(); })
     .then(function (d) {
       if (d.serial) {
         dsInput.value = d.serial;
-        log('song-log', 'Device detected: ' + d.serial, 'ok');
+        log('song-log', t('log.detect.found') + d.serial, 'ok');
       } else {
-        log('song-log', 'No device found.', 'err');
+        log('song-log', t('log.detect.none'), 'err');
         dsInput.placeholder = "";
       }
     })
     .catch(function (e) {
-      log('song-log', 'Failed to auto-detect.', 'err');
+      log('song-log', t('log.detect.fail'), 'err');
       dsInput.placeholder = "";
     });
 }
@@ -925,9 +979,7 @@ function onAdvanced(key) {
   const raw = parseInt(document.getElementById('sld-' + key).value);
   const el = document.getElementById('val-' + key);
 
-  const sld = document.getElementById('sld-' + key);
-  const pct = ((raw - (sld.min || 0)) / ((sld.max || 100) - (sld.min || 0))) * 100;
-  sld.style.setProperty('--val', pct + '%');
+  setSliderFill(document.getElementById('sld-' + key));
 
   if (key === 'flickFactor') {
     el.textContent = (raw / 100).toFixed(2);
@@ -972,44 +1024,41 @@ updateDiffLabels();
 resetAdvanced();
 loadDevices();
 
-// ==========================================
-// expose functions to global scope for HTML onclick handlers
-// ==========================================
-Object.assign(window, {
-  I18n,
-  toggleLangMenu,
-  toggleTheme,
-  nav,
-  navToSearch,
-  killAdbServer,
-  autoDetectDevice,
-  setMode,
-  setBackend,
-  setOrient,
-  setDiff,
-  clearSong,
-  onQInput,
-  onQKey,
-  onQFocus,
-  clearQ,
-  onManualId,
-  submitRun,
-  apiStart,
-  apiStop,
-  adj,
-  resetOff,
-  saveDevice,
-  deleteDevice,
-  onJitter,
-  onGreatCountInput,
-  onAdvanced,
-  resetAdvanced,
-  doExtract,
-  toggleDevDrop,
-  loadDevices,
-  selectDevSerial,
-  selSong
-});
+// ══ event delegation ═══════════════════════════════════════
+// One set of delegated listeners replaces the old inline on* attributes and
+// the window-global exposure. Markup opts in via data-action / data-oninput /
+// data-onkeydown / data-onfocus, with an optional data-arg payload. Handlers
+// receive (arg, element, event).
+const ACTIONS = {
+  toggleLangMenu, toggleTheme, navToSearch, killAdbServer, autoDetectDevice,
+  clearSong, clearQ, submitRun, apiStart, apiRestart, resetOff, resetAdvanced,
+  doExtract, saveDevice, onQInput, onQFocus, onManualId, onGreatCountInput,
+  nav: function (arg) { nav(arg); },
+  setMode: function (arg) { setMode(arg); },
+  setBackend: function (arg) { setBackend(arg); },
+  setOrient: function (arg) { setOrient(arg); },
+  setDiff: function (arg) { setDiff(parseInt(arg)); },
+  adj: function (arg) { adj(parseInt(arg)); },
+  onJitter: function (arg) { onJitter(arg); },
+  onAdvanced: function (arg) { onAdvanced(arg); },
+  langSelect: function (arg) { I18n.select(arg); },
+  selSong: function (arg) { selSong(parseInt(arg)); },
+  selectDevSerial: function (arg, el) { selectDevSerial(el.dataset.serial); },
+  deleteDevice: function (arg, el) { deleteDevice(el.dataset.serial); },
+  toggleDevDrop: function (arg, el, e) { toggleDevDrop(e); },
+  onQKey: function (arg, el, e) { onQKey(e); },
+};
+
+function dispatch(attr, e) {
+  const el = e.target.closest('[' + attr + ']');
+  if (!el) return;
+  const fn = ACTIONS[el.getAttribute(attr)];
+  if (fn) fn(el.dataset.arg, el, e);
+}
+document.addEventListener('click', function (e) { dispatch('data-action', e); });
+document.addEventListener('input', function (e) { dispatch('data-oninput', e); });
+document.addEventListener('keydown', function (e) { dispatch('data-onkeydown', e); });
+document.addEventListener('focusin', function (e) { dispatch('data-onfocus', e); });
 
 
 // ══ Development mode ════════════════════════════════
@@ -1032,8 +1081,7 @@ if (import.meta.env.DEV) {
       S.state = 1;
 
 
-      showNP(mockNp);
-      updatePlayCard(mockNp);
+      renderNowPlaying(mockNp);
 
       updateUI({
         state: 1,
