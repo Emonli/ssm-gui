@@ -341,7 +341,7 @@ function onQInput() {
 function onQFocus() { const v = document.getElementById('q').value.trim(); if (v) doSearch(v); }
 function clearQ() { document.getElementById('q').value = ''; document.getElementById('sc').style.display = 'none'; closeDrop(); }
 
-function loadDB(cb) {
+function loadDB(cb, onErr) {
   if (S.db) { cb(S.db); return; }
   fetch('/api/songdb?mode=' + S.mode)
     .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
@@ -349,7 +349,17 @@ function loadDB(cb) {
       S.db = normalizeSongDB(d);
       cb(S.db);
     })
-    .catch(function (e) { log('song-log', t('log.conn.fail') + e, 'err'); });
+    .catch(function (e) {
+      log('song-log', t('log.conn.fail') + e, 'err');
+      if (onErr) onErr(e);
+    });
+}
+
+// Show a single-line hint inside the search dropdown (loading / error / etc.).
+function showDropHint(text) {
+  const drop = document.getElementById('drop');
+  drop.innerHTML = '<div class="drop-hint">' + esc(text) + '</div>';
+  drop.classList.add('open');
 }
 
 function normalizeSong(rawSong) {
@@ -504,6 +514,9 @@ function normalizeForSearch(s) {
 }
 
 function doSearch(q) {
+  // First search has to fetch the (large) song DB; show feedback instead of a
+  // dead-looking empty box, and surface failures in the dropdown itself.
+  if (!S.db) showDropHint(t('drop.loading'));
   loadDB(function (db) {
     const ql = q.toLowerCase(), qc = normalizeForSearch(q), res = [];
     Object.keys(db.songs).forEach(function (sid) {
@@ -540,6 +553,8 @@ function doSearch(q) {
       return a.id - b.id;
     });
     renderDrop(res.slice(0, 40));
+  }, function () {
+    showDropHint(t('drop.error'));
   });
 }
 
@@ -594,11 +609,20 @@ function clearSong() {
 function onManualId() {
   const v = parseInt(document.getElementById('song-id').value) || 0;
   if (v > 0) {
-    S.songId = v; S.songData = null;
+    // If the song DB is already loaded and knows this id, surface its real
+    // title and available difficulties right away instead of waiting for the
+    // backend to reject an unavailable difficulty after Load.
+    const song = (S.db && S.db.songs) ? S.db.songs[v] : null;
+    S.songId = v; S.songData = song || null;
     document.getElementById('sb-id').textContent = '#' + v;
-    document.getElementById('sb-title').textContent = t('manual.title');
+    document.getElementById('sb-title').textContent = song ? pickName(song.musicTitle, S.mode === 'pjsk') : t('manual.title');
     document.getElementById('sel-bar').classList.add('show');
-    setDiffAvail(null);
+    if (song) {
+      const avail = Object.keys(song.difficulty || {}).map(Number).sort();
+      setDiffAvail(avail.length ? avail : null);
+    } else {
+      setDiffAvail(null);
+    }
   } else {
     // Field was cleared — drop the selection so a stale id isn't submitted.
     S.songId = 0; S.songData = null;

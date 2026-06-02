@@ -150,9 +150,18 @@ describe('humanization + advanced sliders', () => {
 });
 
 describe('search + song selection', () => {
+  it('surfaces an error in the dropdown when the song DB fails to load', async () => {
+    // Runs before the DB is cached: fail the next songdb fetch once.
+    globalThis.fetch.mockImplementationOnce(() =>
+      Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}), text: () => Promise.resolve('') }));
+    setInput('#q', 'exist');
+    await flush(260);
+    expect(document.getElementById('drop').textContent).toContain(enLocale['drop.error']);
+  });
+
   it('shows matching results in the dropdown', async () => {
     setInput('#q', 'exist');
-    await flush(220); // debounce + songdb fetch
+    await flush(220); // debounce + songdb fetch (now succeeds, caches S.db)
     const items = document.querySelectorAll('#drop .di');
     expect(items.length).toBeGreaterThan(0);
     expect(document.querySelector('#drop .di-title').textContent).toBe('EXIST');
@@ -293,11 +302,16 @@ describe('log box', () => {
 });
 
 describe('manual song id', () => {
-  it('selects on a positive id and clears the selection when emptied', () => {
+  it('resolves a known id against the loaded DB (title + difficulty availability)', () => {
+    // DB is cached from the search tests; id 325 is known with diffs 0-3.
     setInput('#song-id', '325');
     expect(document.getElementById('sel-bar').classList.contains('show')).toBe(true);
     expect(document.getElementById('sb-id').textContent).toBe('#325');
-    // Emptying the field must drop the selection (no stale id left to submit).
+    expect(document.getElementById('sb-title').textContent).toBe('EXIST'); // real title, not "Manual input"
+    expect(document.querySelectorAll('.db')[4].classList.contains('dis')).toBe(true); // SPECIAL unavailable
+  });
+
+  it('clears the selection when the id field is emptied', () => {
     setInput('#song-id', '');
     expect(document.getElementById('sel-bar').classList.contains('show')).toBe(false);
   });
