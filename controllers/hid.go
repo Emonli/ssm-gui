@@ -410,4 +410,5 @@ func FindHIDDevices() []string {
 
 type Controller interface {
 	Send(data []byte)
+	Close() error
 }

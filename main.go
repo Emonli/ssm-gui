@@ -135,38 +135,27 @@ func runGUI(conf *config.Config) {
 				chart = scores.ParseBMS(string(chartText))
 			}
 
-			genConfig := &scores.VTEGenerateConfig{
-				TapDuration:         10,
-				FlickDuration:       60,
-				FlickReportInterval: 5,
-				FlickFactor:         1.0 / 5,
-				FlickPow:            1,
-				SlideReportInterval: 10,
-				TimingJitter:        req.TimingJitter,
-				PositionJitter:      req.PositionJitter,
-				TapDurJitter:        req.TapDurJitter,
-				GreatOffsetMs: func() int64 {
-					v := req.GreatOffsetMs
-					if v < 0 {
-						v = -v
-					}
-					if v == 0 {
-						v = 10
-					}
-					return v
-				}(),
-				GreatTargetCount: func() int64 {
-					v := req.GreatCount
-					if v < 0 {
-						return 0
-					}
-					return v
-				}(),
-			}
-			if pjskMode {
-				genConfig.FlickFactor = 1.0 / 6
-				genConfig.FlickDuration = 20
-			}
+			genConfig := newDefaultVTEConfig(pjskMode)
+			genConfig.TimingJitter = req.TimingJitter
+			genConfig.PositionJitter = req.PositionJitter
+			genConfig.TapDurJitter = req.TapDurJitter
+			genConfig.GreatOffsetMs = func() int64 {
+				v := req.GreatOffsetMs
+				if v < 0 {
+					v = -v
+				}
+				if v == 0 {
+					v = 10
+				}
+				return v
+			}()
+			genConfig.GreatTargetCount = func() int64 {
+				v := req.GreatCount
+				if v < 0 {
+					return 0
+				}
+				return v
+			}()
 			// Override defaults with user-supplied advanced params (0 = keep default)
 			if req.TapDuration > 0 {
 				genConfig.TapDuration = req.TapDuration
@@ -189,74 +178,12 @@ func runGUI(conf *config.Config) {
 			rawEvents, greatApplied := scores.GenerateTouchEvent(genConfig, chart)
 			srv.SetGreatStats(req.GreatCount, int64(greatApplied))
 
-			var ctrl controllers.Controller
-			var events []common.ViscousEventItem
-
-			switch backend {
-			case "adb":
-				checkOrDownload()
-				if err := adb.StartADBServer("localhost", 5037); err != nil && err != adb.ErrADBServerRunning {
-					srv.SetError("Failed to start ADB server: " + err.Error())
-					return
-				}
-				client := adb.NewDefaultClient()
-				devices, err := client.Devices()
-				if err != nil || len(devices) == 0 {
-					srv.SetError("No ADB devices found. Please make sure the device is connected.")
-					return
-				}
-				var device *adb.Device
-				if deviceSerial == "" {
-					device = adb.FirstAuthorizedDevice(devices)
-				} else {
-					for _, d := range devices {
-						if d.Serial() == deviceSerial {
-							device = d
-							break
-						}
-					}
-				}
-				if device == nil {
-					srv.SetError("No authorized ADB device found.")
-					return
-				}
-				scrcpy := controllers.NewScrcpyController(device)
-				if err := scrcpy.Open("./"+SERVER_FILE, SERVER_FILE_VERSION); err != nil {
-					srv.SetError("Failed to connect to device: " + err.Error())
-					return
-				}
-				defer scrcpy.Close()
-				dc := conf.Get(device.Serial())
-				if dc == nil {
-					srv.SetError(fmt.Sprintf("Device [%s] not configured. Please add it in Settings first.", device.Serial()))
-					return
-				}
-				events = scrcpy.Preprocess(rawEvents, direction == "right", dc, getJudgeLineCalculator())
-				ctrl = scrcpy
-
-			default: // hid
-				if deviceSerial == "" {
-					serials := controllers.FindHIDDevices()
-					if len(serials) == 0 {
-						srv.SetError("No HID devices found. Please make sure USB is connected.")
-						return
-					}
-					deviceSerial = serials[0]
-				}
-				dc := conf.Get(deviceSerial)
-				if dc == nil {
-					srv.SetError(fmt.Sprintf("Device [%s] not configured. Please add it in Settings first.", deviceSerial))
-					return
-				}
-				hidCtrl := controllers.NewHIDController(dc)
-				if err := hidCtrl.Open(); err != nil {
-					srv.SetError("Failed to initialize HID: " + err.Error())
-					return
-				}
-				defer hidCtrl.Close()
-				events = hidCtrl.Preprocess(rawEvents, direction == "right", getJudgeLineCalculator())
-				ctrl = hidCtrl
+			ctrl, events, err := openController(conf, backend, deviceSerial, direction == "right", rawEvents)
+			if err != nil {
+				srv.SetError(err.Error())
+				return
 			}
+			defer ctrl.Close()
 
 			if len(events) == 0 {
 				srv.SetError("No playable events were generated for this chart.")
@@ -703,72 +630,108 @@ func extractAssetFilter(p string) bool {
 		strings.Contains(p, "ingameskin")
 }
 
-func (t *tui) adbBackend(conf *config.Config, rawEvents common.RawVirtualEvents) {
-	checkOrDownload()
-	if err := adb.StartADBServer("localhost", 5037); err != nil && err != adb.ErrADBServerRunning {
-		log.Fatal(err)
+// newDefaultVTEConfig returns the baseline touch-event generation config for a
+// game mode. Callers (GUI / CLI) layer their own jitter/advanced overrides on
+// top, so the defaults live in exactly one place.
+func newDefaultVTEConfig(pjsk bool) *scores.VTEGenerateConfig {
+	c := &scores.VTEGenerateConfig{
+		TapDuration:         10,
+		FlickDuration:       60,
+		FlickReportInterval: 5,
+		FlickFactor:         1.0 / 5,
+		FlickPow:            1,
+		SlideReportInterval: 10,
 	}
-	client := adb.NewDefaultClient()
-	devices, err := client.Devices()
-	if err != nil {
-		log.Fatal(err)
+	if pjsk {
+		c.FlickFactor = 1.0 / 6
+		c.FlickDuration = 20
 	}
-	if len(devices) == 0 {
-		log.Die(errNoDevice)
-	}
-	log.Debugln("ADB devices:", devices)
-	var device *adb.Device
-	if deviceSerial == "" {
-		device = adb.FirstAuthorizedDevice(devices)
-		if device == nil {
-			log.Die("No authorized devices.")
-		}
-	} else {
-		for _, d := range devices {
-			if d.Serial() == deviceSerial {
-				device = d
-				break
-			}
-		}
-		if device == nil {
-			log.Dief("No device has serial `%s`", deviceSerial)
-		}
-		if !device.Authorized() {
-			log.Dief("Device `%s` is not authorized.", deviceSerial)
-		}
-	}
-	log.Debugln("Selected device:", device)
-	controller := controllers.NewScrcpyController(device)
-	if err := controller.Open("./scrcpy-server-v3.3.1", "3.3.1"); err != nil {
-		log.Die("Failed to connect to device:", err)
-	}
-	defer controller.Close()
-	dc := conf.Get(device.Serial())
-	events := controller.Preprocess(rawEvents, direction == "right", dc, getJudgeLineCalculator())
-	t.init(controller, events)
-	t.begin()
-	go t.waitForKey()
-	t.autoplay()
-	time.Sleep(300 * time.Millisecond)
+	return c
 }
 
-func (t *tui) hidBackend(conf *config.Config, rawEvents common.RawVirtualEvents) {
-	if deviceSerial == "" {
-		serials := controllers.FindHIDDevices()
-		log.Debugln("Recognized devices:", serials)
-		if len(serials) == 0 {
-			log.Die(errNoDevice)
+// openController selects and opens the playback backend (adb or hid) and
+// returns a ready controller plus the preprocessed events. Shared by the GUI
+// and CLI flows; the caller owns Close() and decides how to surface the error
+// (the GUI shows it in the UI, the CLI aborts).
+func openController(conf *config.Config, backend, serial string, turnRight bool, rawEvents common.RawVirtualEvents) (controllers.Controller, []common.ViscousEventItem, error) {
+	switch backend {
+	case "adb":
+		checkOrDownload()
+		if err := adb.StartADBServer("localhost", 5037); err != nil && err != adb.ErrADBServerRunning {
+			return nil, nil, fmt.Errorf("failed to start ADB server: %w", err)
 		}
-		deviceSerial = serials[0]
+		devices, err := adb.NewDefaultClient().Devices()
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to list ADB devices: %w", err)
+		}
+		if len(devices) == 0 {
+			return nil, nil, fmt.Errorf("%s", errNoDevice)
+		}
+		log.Debugln("ADB devices:", devices)
+		var device *adb.Device
+		if serial == "" {
+			device = adb.FirstAuthorizedDevice(devices)
+			if device == nil {
+				return nil, nil, fmt.Errorf("no authorized ADB device found")
+			}
+		} else {
+			for _, d := range devices {
+				if d.Serial() == serial {
+					device = d
+					break
+				}
+			}
+			if device == nil {
+				return nil, nil, fmt.Errorf("no device has serial %q", serial)
+			}
+			if !device.Authorized() {
+				return nil, nil, fmt.Errorf("device %q is not authorized", serial)
+			}
+		}
+		log.Debugln("Selected device:", device)
+		scrcpy := controllers.NewScrcpyController(device)
+		if err := scrcpy.Open("./"+SERVER_FILE, SERVER_FILE_VERSION); err != nil {
+			return nil, nil, fmt.Errorf("failed to connect to device: %w", err)
+		}
+		dc := conf.Get(device.Serial())
+		if dc == nil {
+			scrcpy.Close()
+			return nil, nil, fmt.Errorf("device [%s] not configured. Please add it in Settings first", device.Serial())
+		}
+		return scrcpy, scrcpy.Preprocess(rawEvents, turnRight, dc, getJudgeLineCalculator()), nil
+
+	case "hid":
+		if serial == "" {
+			serials := controllers.FindHIDDevices()
+			log.Debugln("Recognized devices:", serials)
+			if len(serials) == 0 {
+				return nil, nil, fmt.Errorf("%s", errNoDevice)
+			}
+			serial = serials[0]
+		}
+		dc := conf.Get(serial)
+		if dc == nil {
+			return nil, nil, fmt.Errorf("device [%s] not configured. Please add it in Settings first", serial)
+		}
+		hidCtrl := controllers.NewHIDController(dc)
+		if err := hidCtrl.Open(); err != nil {
+			return nil, nil, fmt.Errorf("failed to initialize HID: %w", err)
+		}
+		return hidCtrl, hidCtrl.Preprocess(rawEvents, turnRight, getJudgeLineCalculator()), nil
+
+	default:
+		return nil, nil, fmt.Errorf("unknown backend: %q", backend)
 	}
-	dc := conf.Get(deviceSerial)
-	controller := controllers.NewHIDController(dc)
-	if err := controller.Open(); err != nil {
-		log.Die("Failed to initialize HID:", err)
+}
+
+// play runs the CLI terminal-UI playback for the opened controller/events.
+func (t *tui) play(conf *config.Config, rawEvents common.RawVirtualEvents) {
+	ctrl, events, err := openController(conf, backend, deviceSerial, direction == "right", rawEvents)
+	if err != nil {
+		log.Die(err)
 	}
-	defer controller.Close()
-	events := controller.Preprocess(rawEvents, direction == "right", getJudgeLineCalculator())
-	t.init(controller, events)
+	defer ctrl.Close()
+	t.init(ctrl, events)
 	t.begin()
 	go t.waitForKey()
 	t.autoplay()
@@ -893,19 +856,7 @@ func main() {
 		chart = scores.ParseBMS(string(chartText))
 	}
 
-	genConfig := &scores.VTEGenerateConfig{
-		TapDuration:         10,
-		FlickDuration:       60,
-		FlickReportInterval: 5,
-		FlickFactor:         1.0 / 5,
-		FlickPow:            1,
-		SlideReportInterval: 10,
-	}
-	if pjskMode {
-		genConfig.FlickFactor = 1.0 / 6
-		genConfig.FlickDuration = 20
-	}
-	rawEvents, _ := scores.GenerateTouchEvent(genConfig, chart)
+	rawEvents, _ := scores.GenerateTouchEvent(newDefaultVTEConfig(pjskMode), chart)
 
 	t := newTui(database)
 
@@ -913,14 +864,7 @@ func main() {
 	defer stop()
 
 	go func() {
-		switch backend {
-		case "adb":
-			t.adbBackend(conf, rawEvents)
-		case "hid":
-			t.hidBackend(conf, rawEvents)
-		default:
-			log.Dief("Unknown backend: %q", backend)
-		}
+		t.play(conf, rawEvents)
 		stop()
 	}()
 
