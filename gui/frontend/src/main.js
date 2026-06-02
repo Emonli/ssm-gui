@@ -658,7 +658,10 @@ function updateUI(d) {
   const btn = document.getElementById('btn-start');
   if (st === 1) { btn.disabled = false; btn.classList.add('rdy'); btn.innerHTML = t('play.start.btn'); }
   else { btn.disabled = true; btn.classList.remove('rdy'); btn.innerHTML = t('play.start.btn'); }
-  if (d.nowPlaying && (d.nowPlaying.songId > 0 || d.nowPlaying.title)) renderNowPlaying(d.nowPlaying);
+  // Idle means nothing is loaded/playing (incl. after Stop or finishing), so
+  // clear the play deck instead of leaving the last song frozen on screen.
+  if (st === 0) resetPlayDeck();
+  else if (d.nowPlaying && (d.nowPlaying.songId > 0 || d.nowPlaying.title)) renderNowPlaying(d.nowPlaying);
   if (st !== S._lastLogState) {
     S._lastLogState = st;
     if (st === 1) log('play-log', t('log.ready'), 'info');
@@ -724,6 +727,18 @@ function renderNowPlaying(np) {
   setDiffBadge('pn-diff-badge', np.diff);
   document.getElementById('pn-lv-big').textContent = np.diffLevel ? 'Lv.' + np.diffLevel : '';
   applyJacketColor(getDiffThemeColor(normalizeDiffKey(np.diff || 'expert')));
+}
+
+// Return the play deck to its empty "no song loaded" state and hide the
+// sidebar mini-card. Used when playback goes idle (stopped or finished).
+function resetPlayDeck() {
+  _npSig = '';
+  const card = document.getElementById('np-card');
+  if (card) card.style.display = 'none';
+  const none = document.getElementById('pn-none');
+  if (none) none.style.display = '';
+  const loaded = document.getElementById('pn-loaded');
+  if (loaded) loaded.style.display = 'none';
 }
 
 function normalizeDiffKey(diff) {

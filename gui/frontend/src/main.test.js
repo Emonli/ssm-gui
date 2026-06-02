@@ -194,6 +194,36 @@ describe('SSE → now-playing render', () => {
   });
 });
 
+describe('stop flow (stop = stop, not restart)', () => {
+  const np = { songId: 325, title: 'EXIST', artist: 'Band', diff: 'expert', diffLevel: 26, jacketUrl: 'http://x/j.png' };
+
+  it('clicking Stop posts to /api/stop', async () => {
+    sse.onmessage({ data: JSON.stringify({ state: 2, offset: 0, nowPlaying: np }) }); // playing
+    expect(document.getElementById('pn-loaded').style.display).toBe('block');
+    fetchCalls.length = 0;
+    document.querySelector('[data-action="apiStop"]').click();
+    await flush();
+    expect(fetchCalls.some(([u]) => u.includes('/api/stop'))).toBe(true);
+  });
+
+  it('an idle frame clears the deck instead of freezing on the last song', () => {
+    // The backend still includes the last nowPlaying in the idle frame; the UI
+    // must NOT keep showing it as if loaded.
+    sse.onmessage({ data: JSON.stringify({ state: 0, offset: 0, nowPlaying: np }) });
+    expect(document.getElementById('pn-loaded').style.display).toBe('none');
+    expect(document.getElementById('pn-none').style.display).toBe('');
+    expect(document.getElementById('np-card').style.display).toBe('none');
+    expect(document.getElementById('btn-start').disabled).toBe(true);
+  });
+
+  it('loading a song again (ready) re-renders the deck', () => {
+    sse.onmessage({ data: JSON.stringify({ state: 1, offset: 0, nowPlaying: np }) });
+    expect(document.getElementById('pn-loaded').style.display).toBe('block');
+    expect(document.getElementById('pn-title-big').textContent).toBe('EXIST');
+    expect(document.getElementById('btn-start').disabled).toBe(false);
+  });
+});
+
 describe('API actions', () => {
   it('submits a run for the selected, configured device', async () => {
     setInput('#dev-serial', 'TESTSERIAL');
