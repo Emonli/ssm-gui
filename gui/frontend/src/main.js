@@ -597,11 +597,15 @@ function onManualId() {
 }
 
 // ══ log ════════════════════════════════════════════════════
+const LOG_MAX = 200;
 function log(boxId, msg, type) {
   const box = document.getElementById(boxId);
   const l = document.createElement('div'); l.className = 'll ' + (type || '');
   l.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
-  box.appendChild(l); box.scrollTop = box.scrollHeight;
+  box.appendChild(l);
+  // Cap the log so long sessions don't grow the DOM without bound.
+  while (box.childElementCount > LOG_MAX) box.removeChild(box.firstElementChild);
+  box.scrollTop = box.scrollHeight;
 }
 
 // ══ SSE ════════════════════════════════════════════════════
@@ -654,7 +658,7 @@ function updateUI(d) {
   const btn = document.getElementById('btn-start');
   if (st === 1) { btn.disabled = false; btn.classList.add('rdy'); btn.innerHTML = t('play.start.btn'); }
   else { btn.disabled = true; btn.classList.remove('rdy'); btn.innerHTML = t('play.start.btn'); }
-  if (d.nowPlaying && (d.nowPlaying.songId > 0 || d.nowPlaying.title)) { showNP(d.nowPlaying); updatePlayCard(d.nowPlaying); }
+  if (d.nowPlaying && (d.nowPlaying.songId > 0 || d.nowPlaying.title)) renderNowPlaying(d.nowPlaying);
   if (st !== S._lastLogState) {
     S._lastLogState = st;
     if (st === 1) log('play-log', t('log.ready'), 'info');
@@ -672,25 +676,54 @@ function updateUI(d) {
 	}
 }
 
-function showNP(np) {
-  document.getElementById('np-card').style.display = 'block';
-  const img = document.getElementById('np-img');
+// Paint a jacket <img> with multi-URL fallback, toggling its "no artwork"
+// placeholder sibling.
+function paintJacket(imgId, noId, np) {
+  const img = document.getElementById(imgId);
   if (np.jacketUrl) {
     setImageWithFallback(img, np.jacketUrls && np.jacketUrls.length ? np.jacketUrls : [np.jacketUrl]);
     img.style.display = 'block';
-    document.getElementById('np-no').style.display = 'none';
+    document.getElementById(noId).style.display = 'none';
   } else {
     img.onerror = null;
     img.removeAttribute('src');
     img.style.display = 'none';
-    document.getElementById('np-no').style.display = 'flex';
+    document.getElementById(noId).style.display = 'flex';
   }
+}
+
+function setDiffBadge(id, rawDiff) {
+  const el = document.getElementById(id);
+  el.className = 'np-diff d-' + normalizeDiffKey(rawDiff || 'expert');
+  el.textContent = String(rawDiff || '').toUpperCase();
+}
+
+// Render both the sidebar mini-card and the play-deck card from one NowPlaying
+// payload. Guarded by a signature so the per-message SSE stream doesn't re-set
+// the jacket src (which caused reload flicker) or redo DOM work every tick.
+let _npSig = '';
+function renderNowPlaying(np) {
+  const sig = [np.songId, np.title, np.artist, np.diff, np.diffLevel, np.jacketUrl].join('');
+  if (sig === _npSig) return;
+  _npSig = sig;
+
+  // sidebar mini-card
+  document.getElementById('np-card').style.display = 'block';
+  paintJacket('np-img', 'np-no', np);
   document.getElementById('np-title').textContent = np.title || '—';
   document.getElementById('np-artist').textContent = np.artist || '';
-  const npDiffRaw = np.diff || 'expert';
-  const npDiffKey = normalizeDiffKey(npDiffRaw);
-  const db = document.getElementById('np-diff'); db.className = 'np-diff d-' + npDiffKey; db.textContent = String(npDiffRaw || '').toUpperCase();
+  setDiffBadge('np-diff', np.diff);
   document.getElementById('np-lv').textContent = np.diffLevel ? 'Lv.' + np.diffLevel : '';
+
+  // play-deck card
+  document.getElementById('pn-none').style.display = 'none';
+  document.getElementById('pn-loaded').style.display = 'block';
+  paintJacket('pn-img', 'pn-no', np);
+  document.getElementById('pn-title-big').textContent = np.title || '—';
+  document.getElementById('pn-artist-big').textContent = np.artist || '';
+  setDiffBadge('pn-diff-badge', np.diff);
+  document.getElementById('pn-lv-big').textContent = np.diffLevel ? 'Lv.' + np.diffLevel : '';
+  applyJacketColor(getDiffThemeColor(normalizeDiffKey(np.diff || 'expert')));
 }
 
 function normalizeDiffKey(diff) {
@@ -721,29 +754,6 @@ function applyJacketColor(themeColor) {
   // Mirror to root so all descendants and pseudo-elements resolve the same value.
   document.documentElement.style.setProperty('--jacket-color', themeColor);
   document.documentElement.classList.toggle('is-append-diff', themeColor === '#4f8ff7' || themeColor === '#f26ec9');
-}
-
-function updatePlayCard(np) {
-  document.getElementById('pn-none').style.display = 'none'; document.getElementById('pn-loaded').style.display = 'block';
-  const pimg = document.getElementById('pn-img');
-  if (np.jacketUrl) {
-    setImageWithFallback(pimg, np.jacketUrls && np.jacketUrls.length ? np.jacketUrls : [np.jacketUrl]);
-    pimg.style.display = 'block';
-    document.getElementById('pn-no').style.display = 'none';
-  } else {
-    pimg.onerror = null;
-    pimg.removeAttribute('src');
-    pimg.style.display = 'none';
-    document.getElementById('pn-no').style.display = 'flex';
-  }
-  document.getElementById('pn-title-big').textContent = np.title || '—';
-  document.getElementById('pn-artist-big').textContent = np.artist || '';
-  const rawDiff = np.diff || 'expert';
-  const diffKey = normalizeDiffKey(rawDiff);
-  const badge = document.getElementById('pn-diff-badge'); badge.className = 'np-diff d-' + diffKey; badge.textContent = String(rawDiff || '').toUpperCase();
-  document.getElementById('pn-lv-big').textContent = np.diffLevel ? 'Lv.' + np.diffLevel : '';
-  const themeColor = getDiffThemeColor(diffKey);
-  applyJacketColor(themeColor);
 }
 
 function setImageWithFallback(imgEl, urls) {
@@ -1034,8 +1044,7 @@ if (import.meta.env.DEV) {
       S.state = 1;
 
 
-      showNP(mockNp);
-      updatePlayCard(mockNp);
+      renderNowPlaying(mockNp);
 
       updateUI({
         state: 1,
