@@ -593,7 +593,18 @@ function clearSong() {
 }
 function onManualId() {
   const v = parseInt(document.getElementById('song-id').value) || 0;
-  if (v > 0) { S.songId = v; S.songData = null; document.getElementById('sb-id').textContent = '#' + v; document.getElementById('sb-title').textContent = t('manual.title'); document.getElementById('sel-bar').classList.add('show'); setDiffAvail(null); }
+  if (v > 0) {
+    S.songId = v; S.songData = null;
+    document.getElementById('sb-id').textContent = '#' + v;
+    document.getElementById('sb-title').textContent = t('manual.title');
+    document.getElementById('sel-bar').classList.add('show');
+    setDiffAvail(null);
+  } else {
+    // Field was cleared — drop the selection so a stale id isn't submitted.
+    S.songId = 0; S.songData = null;
+    document.getElementById('sel-bar').classList.remove('show');
+    setDiffAvail(null);
+  }
 }
 
 // ══ log ════════════════════════════════════════════════════

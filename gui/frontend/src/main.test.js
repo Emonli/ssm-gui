@@ -291,3 +291,14 @@ describe('log box', () => {
     expect(box.childElementCount).toBeLessThanOrEqual(200);
   });
 });
+
+describe('manual song id', () => {
+  it('selects on a positive id and clears the selection when emptied', () => {
+    setInput('#song-id', '325');
+    expect(document.getElementById('sel-bar').classList.contains('show')).toBe(true);
+    expect(document.getElementById('sb-id').textContent).toBe('#325');
+    // Emptying the field must drop the selection (no stale id left to submit).
+    setInput('#song-id', '');
+    expect(document.getElementById('sel-bar').classList.contains('show')).toBe(false);
+  });
+});
