@@ -52,11 +52,11 @@ Adjust the following ROI in **`nav_ocr.go`** manually:
 |`defaultRoiPlayAgainBang`| area of "play again" button in result screen |
  
 #### How to activate auto cycling mode:
-make sure you game are in "选择乐曲/楽曲選択“ scene,
-select song.automode in web ui
-click "load & perpare" button
-wait for song detect, click "start"
-since that time, auto cycling mode start.
+- make sure you game are in "选择乐曲/楽曲選択“ scene,
+- select song.automode in web ui
+- click "load & perpare" button
+- wait for song detect, click "start"
+- since that time, auto cycling mode start.
 
 #### Architecture
 
