@@ -8,6 +8,7 @@ gui/frontend/dist/
 /ssm
 /ssm.exe
 /ssm-gui.exe
+/ssm-gui.exe~
 
 /*.svg
 /assets/
@@ -17,3 +18,5 @@ gui/frontend/dist/
 /*.txt
 /scrcpy-server-*
 /*.dll
+/gamedata
+/GUIDE

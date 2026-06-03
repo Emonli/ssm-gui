@@ -55,6 +55,30 @@ var (
 	defaultRoiPauseButtonBang = navROI{0.91, 0.00, 0.98, 0.14}
 	defaultRoiPauseButtonPjsk = navROI{0.91, 0.00, 0.98, 0.14}
 
+	// ─────────────────────────────────────────────────────────────
+	// Post-Game ROIs (游戏结束后的导航)
+	// ─────────────────────────────────────────────────────────────
+
+	// roiContinueButton: 结算界面的"继续/確定"按钮
+	defaultRoiContinueButtonBang = navROI{0.75, 0.86, 0.92, 0.94}
+	defaultRoiContinueButtonPjsk = navROI{0.75, 0.86, 0.92, 0.94}
+
+	// OK buttion: use to check the second stage pop up window. e.g.获得报酬弹窗
+	defaultRoiOKButtonBang = navROI{0.42, 0.80, 0.58, 0.87}
+	defaultRoiOKButtonPjsk = navROI{0.35, 0.75, 0.65, 0.85}
+
+	// Rank Up pop-up window confirm button locaiton 角色升级弹窗确认按钮
+	defaultRoiRankUpBang = navROI{0.41, 0.69, 0.59, 0.77}
+	defaultRoiRankUpPjsk = navROI{0.41, 0.69, 0.59, 0.77}
+
+	// roiRCloseButton: check pop up window. e.g., 达成报酬一览
+	defaultRoiCloseButtonBang = navROI{0.42, 0.82, 0.58, 0.90}
+	defaultRoiCloseButtonPjsk = navROI{0.10, 0.15, 0.45, 0.35}
+
+	// roiPlayGagin: play again button
+	defaultRoiPlayAgainBang = navROI{0.56, 0.86, 0.71, 0.93}
+	defaultRoiPlayAgainPjsk = navROI{0.56, 0.86, 0.71, 0.93}
+
 	roiFullScreen = navROI{0.00, 0.00, 1.00, 1.00}
 
 	roiPageTitle      = defaultRoiPageTitleBang
@@ -68,6 +92,13 @@ var (
 	roiBandConfirmTap = defaultRoiBandConfirmTapBang
 	roiAlbumCover     = defaultRoiAlbumCoverBang
 	roiPauseButton    = defaultRoiPauseButtonBang
+
+	// Post-game ROIs
+	roiContinueButton  = defaultRoiContinueButtonBang
+	roiOKButton        = defaultRoiOKButtonBang
+	roiCloseButton     = defaultRoiCloseButtonBang
+	roiPlayAgainButton = defaultRoiPlayAgainBang
+	roiRankUpButton    = defaultRoiRankUpBang
 )
 
 func applyNavModeProfile(mode string) {
@@ -82,6 +113,13 @@ func applyNavModeProfile(mode string) {
 		roiBandConfirmTap = defaultRoiBandConfirmTapPjsk
 		roiAlbumCover = defaultRoiAlbumCoverPjsk
 		roiPauseButton = defaultRoiPauseButtonPjsk
+		// Post-game ROIs for PJSK
+		roiContinueButton = defaultRoiContinueButtonPjsk
+		roiOKButton = defaultRoiOKButtonPjsk
+		roiCloseButton = defaultRoiCloseButtonPjsk
+		roiPlayAgainButton = defaultRoiPlayAgainPjsk
+		roiRankUpButton = defaultRoiRankUpPjsk
+
 		return
 	}
 	roiPageTitle = defaultRoiPageTitleBang
@@ -94,6 +132,12 @@ func applyNavModeProfile(mode string) {
 	roiBandConfirmTap = defaultRoiBandConfirmTapBang
 	roiAlbumCover = defaultRoiAlbumCoverBang
 	roiPauseButton = defaultRoiPauseButtonBang
+	// Post-game ROIs for BanG Dream
+	roiContinueButton = defaultRoiContinueButtonBang
+	roiOKButton = defaultRoiOKButtonBang
+	roiCloseButton = defaultRoiCloseButtonBang
+	roiPlayAgainButton = defaultRoiPlayAgainBang
+	roiRankUpButton = defaultRoiRankUpBang
 }
 
 func normalizePercentROI(roi gui.ROI, fallback navROI) navROI {

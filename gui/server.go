@@ -534,6 +534,15 @@ func (s *Server) SetGreatStats(requested, applied int64) {
 	s.broadcastState()
 }
 
+// StartPlaying sets the state to StatePlaying without going through WaitForStart.
+// Used by the auto-replay path where we already know the game is starting.
+func (s *Server) StartPlaying() {
+	s.mu.Lock()
+	s.state = StatePlaying
+	s.mu.Unlock()
+	go s.broadcastState()
+}
+
 func (s *Server) SetAutoTriggerDebug(v AutoTriggerDebug) {
 	s.mu.Lock()
 	s.autoDebug = v

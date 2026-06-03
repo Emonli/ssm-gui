@@ -57,8 +57,9 @@ var (
 )
 
 var (
-	guiMode bool
-	guiPort int
+	guiMode       bool
+	guiPort       int
+	autoReplaying bool // true when server auto-restart should skip WaitForStart
 )
 
 const (
@@ -1228,6 +1229,18 @@ func runGUI(conf *config.Config) {
 			var hidCtrl *controllers.HIDController
 			var deviceCfg *config.DeviceConfig
 
+			ocrC, ocrErr := getOCRClient()
+			if ocrErr != nil {
+				log.Warnf("GoOCR unavailable: %v", ocrErr)
+				srv.SetAutoTriggerDebug(gui.AutoTriggerDebug{
+					Enabled: true, Mode: req.Mode,
+					NavStage: "SONG_DETECT", NavScene: "song-detecting",
+					Message: "SONG_DETECT\n  → GoOCR unavailable",
+				})
+				srv.SetError("Auto song detect failed: GoOCR unavailable: " + ocrErr.Error())
+				return
+			}
+
 			switch backend {
 			case "adb":
 				ok, err := hasValidScrcpyServer()
@@ -1312,18 +1325,6 @@ func runGUI(conf *config.Config) {
 				}
 				var texts []string
 				detectedID, detectedTitle := 0, ""
-
-				ocrC, ocrErr := getOCRClient()
-				if ocrErr != nil {
-					log.Warnf("GoOCR unavailable: %v", ocrErr)
-					srv.SetAutoTriggerDebug(gui.AutoTriggerDebug{
-						Enabled: true, Mode: req.Mode,
-						NavStage: "SONG_DETECT", NavScene: "song-detecting",
-						Message: "SONG_DETECT\n  → GoOCR unavailable",
-					})
-					srv.SetError("Auto song detect failed: GoOCR unavailable: " + ocrErr.Error())
-					return
-				}
 
 				titleROI := [4]float64{roiPageTitle.x1, roiPageTitle.y1, roiPageTitle.x2, roiPageTitle.y2}
 				titleTexts, ocrErr := ocrC.OCR(pngData, &titleROI)
@@ -1530,7 +1531,14 @@ func runGUI(conf *config.Config) {
 
 			srv.SetAutoTriggerDebug(gui.AutoTriggerDebug{Enabled: req.AutoTriggerVision, Mode: req.Mode, Message: "idle"})
 
-			if !srv.WaitForStart(ctx) {
+			// On replay (triggered by server auto-restart after postGameNav),
+			// skip WaitForStart but manually set state to StatePlaying,
+			// otherwise Autoplay's done handler won't trigger the next auto-restart.
+			if autoReplaying {
+				autoReplaying = false
+				srv.StartPlaying()
+				log.Infoln("[REPLAY] auto-skipping WaitForStart")
+			} else if !srv.WaitForStart(ctx) {
 				return
 			}
 
@@ -1583,6 +1591,38 @@ func runGUI(conf *config.Config) {
 			srv.Autoplay(ctx, start)
 
 			time.Sleep(300 * time.Millisecond)
+
+			// If ctx was cancelled (user clicked Stop), skip to avoid post game nav
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+
+			// Post-game navigation: handle result screen, confirmations, and return to song selection.
+			// Uses context.Background() so it survives the server's auto-restart (which cancels ctx ~1s after Autoplay).
+			// After successfully returning to song select, just let the goroutine end —
+			// the server's built-in auto-restart (gui/server.go:649) will fire runOnce again
+			// for the next cycle.
+			if req.AutoNavigation && req.Mode == "bang" {
+				sc, ok := ctrl.(*controllers.ScrcpyController)
+				if ok && adbDevice != nil {
+					log.Infoln("post end start")
+					srv.SetAutoTriggerDebug(gui.AutoTriggerDebug{
+						Enabled:  true,
+						Mode:     "bang",
+						NavStage: "POST_GAME",
+						NavScene: "post-game-nav",
+						Message:  "post game nav start, wait for 20 second",
+					})
+					postGameCtx := context.Background()
+					postGameNavigationBanG(postGameCtx, adbDevice, sc, srv, ocrC)
+					// Signal the next runOnce (triggered by server auto-restart)
+					// to skip WaitForStart and auto-proceed.
+					autoReplaying = true
+				}
+			}
+
 		}()
 	}
 
