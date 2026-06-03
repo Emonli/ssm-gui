@@ -110,11 +110,11 @@ func postGameNavigationBanG(
 	OKButtonROI := [4]float64{roiOKButton.x1, roiOKButton.y1, roiOKButton.x2, roiOKButton.y2}
 	PlayAgainROI := [4]float64{roiPlayAgainButton.x1, roiPlayAgainButton.y1, roiPlayAgainButton.x2, roiPlayAgainButton.y2}
 
-	RankUpKeywords := []string{"确定", "confirm"}
-	closeKeywords := []string{"关闭", "close", "閉じる", "閉じ"}
+	RankUpKeywords := []string{"确定", "OK"}
+	closeKeywords := []string{"关闭", "閉じる", "閉じ"}
 	okKeywords := []string{"OK"}
-	playAgainKeywords := []string{"再次演出", "playagain"}
-	continueKeywords := []string{"下一步", "next"}
+	playAgainKeywords := []string{"再次演出", "もう1回ライブ"}
+	continueKeywords := []string{"下一步", "次へ"}
 
 	// wait for loading result screen
 	time.Sleep(20 * time.Second)
@@ -139,7 +139,7 @@ func postGameNavigationBanG(
 		switch stageName {
 		case stageRankUp:
 			// 检查角色升级弹窗（确定按钮）
-			emitStage(stageRankUp, "rank-up-window-check", "→ 检查角色升级弹窗 确定 按钮", screenLuma, false)
+			emitStage(stageRankUp, "rank-up-window-check", "→ 检查角色升级弹窗 确定/OK 按钮", screenLuma, false)
 			pngData, scErr := ADBdevice.ScreencapPNGBytes()
 			if scErr != nil {
 				srv.SetError("screencap failed: " + scErr.Error())
@@ -156,7 +156,7 @@ func postGameNavigationBanG(
 			emitStage(stageRankUp, "rank-up-window", fmt.Sprintf("→ OCR文字=%v | 相似度=%.2f", norm, score), screenLuma, false)
 
 			if score >= 0.5 {
-				emitStage(stageRankUp, "rank-up-window", "→ 检测到『确定/confirm』按钮,准备点击", screenLuma, true)
+				emitStage(stageRankUp, "rank-up-window", "→ 检测到『确定/OK』按钮,准备点击", screenLuma, true)
 				x, y, found := roiCenterPx(frame, roiRankUpButton)
 				if found {
 					tapAt(x, y)
@@ -207,7 +207,7 @@ func postGameNavigationBanG(
 
 		case stagePopUpCheck:
 			// 检查一级弹窗（关闭按钮）
-			emitStage(stagePopUpCheck, "pop-up-window-check", "→ 检查一级弹窗 Close 按钮", screenLuma, false)
+			emitStage(stagePopUpCheck, "pop-up-window-check", "→ 检查一级弹窗 关闭/閉じる 按钮", screenLuma, false)
 			pngData, scErr := ADBdevice.ScreencapPNGBytes()
 			if scErr != nil {
 				srv.SetError("screencap failed: " + scErr.Error())
@@ -223,8 +223,8 @@ func postGameNavigationBanG(
 			score := bestKeywordScore(norm, closeKeywords)
 			emitStage(stagePopUpCheck, "pop-up-window", fmt.Sprintf("→ OCR文字=%v | 相似度=%.2f", norm, score), screenLuma, false)
 
-			if score >= 0.5 {
-				emitStage(stagePopUpCheck, "pop-up-window", "→ 检测到『关闭/close』按钮,准备点击", screenLuma, true)
+			if score >= 0.4 {
+				emitStage(stagePopUpCheck, "pop-up-window", "→ 检测到『关闭/閉じる』按钮,准备点击", screenLuma, true)
 				x, y, found := roiCenterPx(frame, roiCloseButton)
 				if found {
 					tapAt(x, y)
@@ -257,8 +257,8 @@ func postGameNavigationBanG(
 			score := bestKeywordScore(norm, playAgainKeywords)
 			emitStage(stagePlayAgain, "play-again-button", fmt.Sprintf("→ OCR文字=%v | 相似度=%.2f", norm, score), screenLuma, false)
 
-			if score >= 0.5 {
-				emitStage(stagePlayAgain, "play-again-button", "→ 检测到『再次演出』按钮,准备点击", screenLuma, true)
+			if score >= 0.4 {
+				emitStage(stagePlayAgain, "play-again-button", "→ 检测到『再次演出/もう1回ライブ』按钮,准备点击", screenLuma, true)
 				x, y, found := roiCenterPx(frame, roiPlayAgainButton)
 				if found {
 					tapAt(x, y)
@@ -275,7 +275,7 @@ func postGameNavigationBanG(
 
 		case stageContinue:
 			// 检查下一步按钮
-			emitStage(stageContinue, "continue-button-check", "→ 检测下一步按钮", screenLuma, false)
+			emitStage(stageContinue, "continue-button-check", "→ 检测 下一步/次へ 按钮", screenLuma, false)
 			pngData, scErr := ADBdevice.ScreencapPNGBytes()
 			if scErr != nil {
 				srv.SetError("screencap failed: " + scErr.Error())
@@ -291,8 +291,8 @@ func postGameNavigationBanG(
 			score := bestKeywordScore(norm, continueKeywords)
 			emitStage(stageContinue, "continue-button", fmt.Sprintf("→ OCR文字=%v | 相似度=%.2f", norm, score), screenLuma, false)
 
-			if score >= 0.5 {
-				emitStage(stageContinue, "continue-button", "→ 检测到『下一步/next』按钮,准备点击", screenLuma, true)
+			if score >= 0.4 {
+				emitStage(stageContinue, "continue-button", "→ 检测到『下一步/次へ』按钮,准备点击", screenLuma, true)
 				x, y, found := roiCenterPx(frame, roiContinueButton)
 				if found {
 					tapAt(x, y)
@@ -307,7 +307,6 @@ func postGameNavigationBanG(
 				setStage(stageRankUp)
 			}
 		}
-
 		time.Sleep(250 * time.Millisecond)
 	}
 

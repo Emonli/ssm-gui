@@ -41,7 +41,7 @@ After a song finishes, the system automatically navigates through post-game scre
 song — no manual interaction required.
 ** Only avaluable for BangDream **
 
-#### Before useing
+#### Before useing:
 Adjust the following ROI in **`nav_ocr.go`** manually:
 | ROI | Role |
 |------|------|
@@ -51,6 +51,12 @@ Adjust the following ROI in **`nav_ocr.go`** manually:
 |`defaultRoiCloseButtonBang`| area of "close" button on reward table window |
 |`defaultRoiPlayAgainBang`| area of "play again" button in result screen |
  
+#### How to activate auto cycling mode:
+make sure you game are in "选择乐曲/楽曲選択“ scene,
+select song.automode in web ui
+click "load & perpare" button
+wait for song detect, click "start"
+since that time, auto cycling mode start.
 
 #### Architecture
 
