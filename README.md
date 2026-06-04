@@ -79,8 +79,8 @@ this makes the pipeline robust against pop-ups that may or may not appear.
 ```mermaid
 flowchart TD
 
-    START(["Autoplay ends"]) --> WAIT10["等待 10 秒加载结算画面"]
-    WAIT10 --> RANKUP
+    START(["Autoplay ends"]) --> WAIT20["等待 20 秒加载结算画面"]
+    WAIT20 --> RANKUP
 
     %% --- RANK UP ---
     RANKUP["RANK_UP<br/>OCR: 确定 / OK "] 
