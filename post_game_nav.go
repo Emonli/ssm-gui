@@ -20,10 +20,7 @@ import (
 //
 // After the game ends and autoplay completes, this module
 // handles navigating through result screen, confirmation dialogs,
-// and returning to song selection for the next game.
-
-// postGameNavigationBanG drives post-game navigation for BanG Dream.
-// It handles result screen confirmation, back to song selection.
+// and returning to song selection for the next game..
 func postGameNavigationBanG(
 	ctx context.Context,
 	ADBdevice *adb.Device,
@@ -33,7 +30,7 @@ func postGameNavigationBanG(
 ) bool {
 	const (
 		stageRankUp     = "RANK_UP"      //角色rank up弹窗 & 每日演出报酬弹窗
-		stageOKButton   = "OK_BUTTON"    // 检查OK按钮
+		stageOKButton   = "OK_BUTTON"    // 检查获得报酬弹窗OK按钮
 		stagePopUpCheck = "POP_UP_CHECK" // 检查是否是一级弹窗，检查关闭按钮
 		stagePlayAgain  = "PLAY_AGAIN"   // 返回歌曲选择
 		stageContinue   = "CONTINUE"     // 点击继续/确定按钮

@@ -45,11 +45,11 @@ song — no manual interaction required.
 Adjust the following ROI in **`nav_ocr.go`** manually:
 | ROI | Role |
 |------|------|
-|`defaultRoiContinueButtonBang`| area of continue button in result screen | 
+|`defaultRoiContinueButtonBang`| area of "下一步", "次へ" button in result screen | 
 |`defaultRoiOKButtonBang`| area of "OK" button on pop-up window |
-|`defaultRoiRankUpBang`| area of "confirm" button on rank up pop-up window |
-|`defaultRoiCloseButtonBang`| area of "close" button on reward table window |
-|`defaultRoiPlayAgainBang`| area of "play again" button in result screen |
+|`defaultRoiRankUpBang`| area of "确定", "OK" button in rank up pop-up window |
+|`defaultRoiCloseButtonBang`| area of "关闭", "閉じる" button on reward table window |
+|`defaultRoiPlayAgainBang`| area of "再次演出", "もう1回ライブ" button in result screen |
  
 #### How to activate auto cycling mode:
 - make sure you game are in "选择乐曲/楽曲選択“ scene,
@@ -83,7 +83,7 @@ flowchart TD
     WAIT10 --> RANKUP
 
     %% --- RANK UP ---
-    RANKUP["RANK_UP<br/>OCR: 确定 / confirm"] 
+    RANKUP["RANK_UP<br/>OCR: 确定 / OK "] 
     RANKUP --> OKBTN
     RANKUP -- "detected" --> RANKUP
 
@@ -92,16 +92,16 @@ flowchart TD
     OKBTN --> POP
 
     %% --- POP UP CHECK ---
-    POP["POP_UP_CHECK<br/>OCR: 关闭 / close / 閉じる"] 
+    POP["POP_UP_CHECK<br/>OCR: 关闭 / 閉じる"] 
     POP --> PLAYAGAIN
 
     %% --- PLAY AGAIN ---
-    PLAYAGAIN["PLAY_AGAIN<br/>OCR: 再次演出 / playagain"]
+    PLAYAGAIN["PLAY_AGAIN<br/>OCR: 再次演出 / もう1回ライブ"]
     PLAYAGAIN --> CONT
     PLAYAGAIN -- "detected" --> DONE
 
     %% --- CONTINUE ---
-    CONT["CONTINUE<br/>OCR: 下一步 / next"]
+    CONT["CONTINUE<br/>OCR: 下一步 / 次へ"]
     CONT --> RANKUP
 
     DONE(["✔ 返回歌曲选择（成功）"])
@@ -117,8 +117,8 @@ flowchart TD
   `nav_ocr.go`, so OCR only scans a tiny rectangle instead of the full screen.
   This keeps detection fast (~200 ms per check).
 - **Keywords in Japanese / Chinese / English** — Each stage matches against
-  multiple languages (e.g. `["关闭", "close", "閉じる", "閉じ"]`) so the same
-  logic works for JP, CN, and EN game clients.**(not fully conpatible currently)**
+  multiple languages (e.g. `["关闭", "閉じる", "閉じ"]`) so the same
+  logic works for JP, CN, and EN game clients.**(not conpatible EN currently)**
 - **Independent context** — Post-game nav uses `context.Background()` rather
   than the run's context, so it survives the server's built-in auto-restart
   mechanism that cancels the play context ~1 s after Autoplay finishes.

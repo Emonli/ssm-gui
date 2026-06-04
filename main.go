@@ -1536,7 +1536,7 @@ func runGUI(conf *config.Config) {
 			// otherwise Autoplay's done handler won't trigger the next auto-restart.
 			if autoReplaying {
 				autoReplaying = false
-				srv.StartPlaying()
+				srv.StartPlaying() //send start commend to server
 				log.Infoln("[REPLAY] auto-skipping WaitForStart")
 			} else if !srv.WaitForStart(ctx) {
 				return
@@ -1600,10 +1600,6 @@ func runGUI(conf *config.Config) {
 			}
 
 			// Post-game navigation: handle result screen, confirmations, and return to song selection.
-			// Uses context.Background() so it survives the server's auto-restart (which cancels ctx ~1s after Autoplay).
-			// After successfully returning to song select, just let the goroutine end —
-			// the server's built-in auto-restart (gui/server.go:649) will fire runOnce again
-			// for the next cycle.
 			if req.AutoNavigation && req.Mode == "bang" {
 				sc, ok := ctrl.(*controllers.ScrcpyController)
 				if ok && adbDevice != nil {
