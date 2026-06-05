@@ -34,7 +34,7 @@ func postGameNavigationBanG(
 		stagePopUpCheck = "POP_UP_CHECK" // 检查是否是一级弹窗，检查关闭按钮
 		stagePlayAgain  = "PLAY_AGAIN"   // 返回歌曲选择
 		stageContinue   = "CONTINUE"     // 点击继续/确定按钮
-		maxIter         = 120            // 最多循环120次 (~30秒 @ 250ms per iter)
+		maxIter         = 120            // 最多循环120次
 	)
 
 	log.Infoln("you are in post game navigation now")
@@ -255,15 +255,23 @@ func postGameNavigationBanG(
 			emitStage(stagePlayAgain, "play-again-button", fmt.Sprintf("→ OCR文字=%v | 相似度=%.2f", norm, score), screenLuma, false)
 
 			if score >= 0.4 {
-				emitStage(stagePlayAgain, "play-again-button", "→ 检测到『再次演出/もう1回ライブ』按钮,准备点击", screenLuma, true)
-				x, y, found := roiCenterPx(frame, roiPlayAgainButton)
-				if found {
-					tapAt(x, y)
-					lastTapAt = time.Now()
-					emitStage(stagePlayAgain, "play-again-button", "→ 已点击,等待5秒后返回主近程", screenLuma, true)
-					time.Sleep(5 * time.Second)
-					return true
+				// 额外检查：按钮区域亮度 > 50% 才点击（避免灰化按钮误触发）
+				roiLuma, _ := sampleROILuma(frame, roiPlayAgainButton)
+				brightnessPct := roiLuma / 255.0 * 100
+				emitStage(stagePlayAgain, "play-again-button", fmt.Sprintf("→ 按钮区域亮度=%.0f%%", brightnessPct), screenLuma, false)
+				if brightnessPct >= 50 {
+					emitStage(stagePlayAgain, "play-again-button", "→ 检测到『再次演出/もう1回ライブ』按钮,准备点击", screenLuma, true)
+					x, y, found := roiCenterPx(frame, roiPlayAgainButton)
+					if found {
+						tapAt(x, y)
+						lastTapAt = time.Now()
+						emitStage(stagePlayAgain, "play-again-button", "→ 已点击,等待5秒后返回主近程", screenLuma, true)
+						time.Sleep(5 * time.Second)
+						return true
+					}
+					continue
 				}
+				emitStage(stagePlayAgain, "play-again-button", "→ 亮度不足，跳过", screenLuma, false)
 			}
 			time.Sleep(inActionDelay)
 			if time.Since(stageEnteredAt) >= 900*time.Millisecond {
@@ -289,15 +297,22 @@ func postGameNavigationBanG(
 			emitStage(stageContinue, "continue-button", fmt.Sprintf("→ OCR文字=%v | 相似度=%.2f", norm, score), screenLuma, false)
 
 			if score >= 0.4 {
-				emitStage(stageContinue, "continue-button", "→ 检测到『下一步/次へ』按钮,准备点击", screenLuma, true)
-				x, y, found := roiCenterPx(frame, roiContinueButton)
-				if found {
-					tapAt(x, y)
-					lastTapAt = time.Now()
-					setStage(stageRankUp)
-					time.Sleep(preStartActionDelay)
+				// 额外检查：按钮区域亮度 > 40% 才点击（避免灰化按钮误触发）
+				roiLuma, _ := sampleROILuma(frame, roiContinueButton)
+				brightnessPct := roiLuma / 255.0 * 100
+				emitStage(stageContinue, "continue-button", fmt.Sprintf("→ 按钮区域亮度=%.0f%%", brightnessPct), screenLuma, false)
+				if brightnessPct >= 40 {
+					emitStage(stageContinue, "continue-button", "→ 检测到『下一步/次へ』按钮,准备点击", screenLuma, true)
+					x, y, found := roiCenterPx(frame, roiContinueButton)
+					if found {
+						tapAt(x, y)
+						lastTapAt = time.Now()
+						setStage(stageRankUp)
+						time.Sleep(preStartActionDelay)
+					}
+					continue
 				}
-				continue
+				emitStage(stageContinue, "continue-button", "→ 亮度不足，跳过", screenLuma, false)
 			}
 			time.Sleep(inActionDelay)
 			if time.Since(stageEnteredAt) >= 900*time.Millisecond {
