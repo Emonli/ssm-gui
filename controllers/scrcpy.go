@@ -305,20 +305,25 @@ func (c *ScrcpyController) Close() error {
 	c.cRunning = false
 	c.vRunning = false
 
-	if err := c.videoSocket.Close(); err != nil {
-		return err
+	// Close every resource even if an earlier one errors, so a failed
+	// videoSocket.Close() can no longer leak the control socket and listener.
+	var firstErr error
+	keep := func(err error) {
+		if err != nil && firstErr == nil {
+			firstErr = err
+		}
 	}
 
-	if err := c.controlSocket.Close(); err != nil {
-		return err
-	}
+	keep(c.videoSocket.Close())
+	keep(c.controlSocket.Close())
 
 	if c.decoder != nil {
 		c.decoder.Drop()
 		c.decoder = nil
 	}
 
-	return c.listener.Close()
+	keep(c.listener.Close())
+	return firstErr
 }
 
 func (c *ScrcpyController) SetFrameHandler(fn func(ScrcpyFrame)) {

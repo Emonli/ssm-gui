@@ -1534,12 +1534,17 @@ func runGUI(conf *config.Config) {
 			// On replay (triggered by server auto-restart after postGameNav),
 			// skip WaitForStart but manually set state to StatePlaying,
 			// otherwise Autoplay's done handler won't trigger the next auto-restart.
-			if autoReplaying {
+			// Gate on AutoNavigation and always clear the flag on a manual start so
+			// a stale autoReplaying can never make a normal run skip WaitForStart.
+			if autoReplaying && req.AutoNavigation {
 				autoReplaying = false
-				srv.StartPlaying() //send start commend to server
+				srv.StartPlaying()
 				log.Infoln("[REPLAY] auto-skipping WaitForStart")
-			} else if !srv.WaitForStart(ctx) {
-				return
+			} else {
+				autoReplaying = false
+				if !srv.WaitForStart(ctx) {
+					return
+				}
 			}
 
 			// Navigation pipeline: automatically click through pre-game screens.
@@ -1611,8 +1616,9 @@ func runGUI(conf *config.Config) {
 						NavScene: "post-game-nav",
 						Message:  "post game nav start, wait for 20 second",
 					})
-					postGameCtx := context.Background()
-					postGameNavigationBanG(postGameCtx, adbDevice, sc, srv, ocrC)
+					// Use the run context so clicking Stop interrupts post-game
+					// navigation instead of being ignored for its whole duration.
+					postGameNavigationBanG(ctx, adbDevice, sc, srv, ocrC)
 					// Signal the next runOnce (triggered by server auto-restart)
 					// to skip WaitForStart and auto-proceed.
 					autoReplaying = true

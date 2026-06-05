@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -351,11 +352,7 @@ func (s *Server) handleDevice(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		w.Header().Set("Content-Type", "application/json")
-		devices := s.conf.Devices
-		if devices == nil {
-			devices = map[string]*config.DeviceConfig{}
-		}
-		json.NewEncoder(w).Encode(devices)
+		json.NewEncoder(w).Encode(s.conf.Snapshot())
 	case http.MethodPost:
 		var body struct {
 			Serial string `json:"serial"`
@@ -366,15 +363,7 @@ func (s *Server) handleDevice(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
-		if s.conf.Devices == nil {
-			s.conf.Devices = map[string]*config.DeviceConfig{}
-		}
-		s.conf.Devices[body.Serial] = &config.DeviceConfig{
-			Serial: body.Serial,
-			Width:  body.Width,
-			Height: body.Height,
-		}
-		s.conf.Save()
+		s.conf.SetDevice(body.Serial, body.Width, body.Height)
 		w.WriteHeader(http.StatusOK)
 	case http.MethodDelete:
 		var body struct {
@@ -384,10 +373,7 @@ func (s *Server) handleDevice(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
-		if s.conf.Devices != nil {
-			delete(s.conf.Devices, body.Serial)
-			s.conf.Save()
-		}
+		s.conf.DeleteDevice(body.Serial)
 		w.WriteHeader(http.StatusOK)
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -445,7 +431,7 @@ func fetchOrLoad(localPath, url string) ([]byte, error) {
 			data, readErr := io.ReadAll(resp.Body)
 			if readErr == nil {
 				if localData, localErr := os.ReadFile(localPath); localErr != nil || !bytes.Equal(localData, data) {
-					go os.WriteFile(localPath, data, 0o644)
+					writeFileAtomic(localPath, data)
 				}
 				return data, nil
 			}
@@ -458,6 +444,28 @@ func fetchOrLoad(localPath, url string) ([]byte, error) {
 		return nil, err
 	}
 	return nil, fmt.Errorf("failed to fetch %s and local cache missing", url)
+}
+
+// writeFileAtomic writes data via a temp file + rename so a concurrent reader
+// never sees a half-written cache file. Best-effort: errors are ignored.
+func writeFileAtomic(path string, data []byte) {
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".tmp-*")
+	if err != nil {
+		return
+	}
+	tmpName := tmp.Name()
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		os.Remove(tmpName)
+		return
+	}
+	if err := tmp.Close(); err != nil {
+		os.Remove(tmpName)
+		return
+	}
+	if err := os.Rename(tmpName, path); err != nil {
+		os.Remove(tmpName)
+	}
 }
 
 func (s *Server) handleExtract(w http.ResponseWriter, r *http.Request) {
@@ -1030,7 +1038,27 @@ func (s *Server) Start() (string, error) {
 		return "", err
 	}
 
-	addr := fmt.Sprintf("http://127.0.0.1:%d", ln.Addr().(*net.TCPAddr).Port)
-	go http.Serve(ln, mux)
+	port := ln.Addr().(*net.TCPAddr).Port
+	addr := fmt.Sprintf("http://127.0.0.1:%d", port)
+
+	// Reject requests whose Host header isn't our loopback address, blocking
+	// DNS-rebinding attacks against the side-effecting endpoints.
+	allowedHosts := map[string]struct{}{
+		fmt.Sprintf("127.0.0.1:%d", port): {},
+		fmt.Sprintf("localhost:%d", port): {},
+	}
+	guarded := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if _, ok := allowedHosts[r.Host]; !ok {
+			http.Error(w, "forbidden host", http.StatusForbidden)
+			return
+		}
+		mux.ServeHTTP(w, r)
+	})
+
+	srv := &http.Server{
+		Handler:           guarded,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+	go srv.Serve(ln)
 	return addr, nil
 }

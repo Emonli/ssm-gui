@@ -1077,8 +1077,19 @@ function log(boxId, msg, type) {
 }
 
 // ══ SSE ════════════════════════════════════════════════════
+var _sseDown = false;
 var es = new EventSource('/api/events');
-es.onmessage = function (e) { var d = JSON.parse(e.data); S.state = d.state; S.offset = d.offset || 0; updateUI(d); };
+es.onmessage = function (e) {
+  var d;
+  try { d = JSON.parse(e.data); } catch (err) { return; }  // ignore malformed frames
+  if (_sseDown) { _sseDown = false; log('play-log', t('log.sse.reconnect'), 'ok'); }
+  S.state = d.state; S.offset = d.offset || 0; updateUI(d);
+};
+es.onerror = function () {
+  // EventSource auto-reconnects; surface the dropped connection once so the UI
+  // doesn't look frozen when the backend restarts.
+  if (!_sseDown) { _sseDown = true; log('play-log', t('log.sse.lost'), 'err'); }
+};
 
 function updateUI(d) {
   var st = d.state, dotCls = DOT_CLS[st] || '';
