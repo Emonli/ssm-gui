@@ -20,19 +20,120 @@ Planned features:
 
 - [x] **Auto first tap** (for us butterfingers out there)
 - [ ] Delay compensation
-- [ ] Auto song title detection
-- [ ] Auto single-player song cycling / grinding
+- [x] Auto song title detection
+- [x] Auto single-player song cycling / grinding
 - [ ] Ensemble / co-op support
 ---
 此分支致力于塑造一个解放双手的懒人，预计开发功能如下：
 
 - [x] 自动打击第一下音符（手残党用）
 - [ ] 延迟补偿
-- [ ] 自动辨识歌名
-- [ ] 自动单人轮巡打歌
+- [x] 自动辨识歌名
+- [x] 自动单人轮巡打歌
 - [ ] 支持协奏
 
 虽然本人开始的初衷只是为了自己做一个简单易用的GUI，却抵不住码农的血液在流淌...
+
+### Auto cycling (post game) part
+
+After a song finishes, the system automatically navigates through post-game screens
+(result, rewards, rank-up, etc.) and returns to song selection to replay the same
+song — no manual interaction required.
+** Only avaluable for BangDream **
+
+#### Before useing:
+Adjust the following ROI in **`nav_ocr.go`** manually:
+| ROI | Role |
+|------|------|
+|`defaultRoiContinueButtonBang`| area of "下一步", "次へ" button in result screen | 
+|`defaultRoiOKButtonBang`| area of "OK" button on pop-up window |
+|`defaultRoiRankUpBang`| area of "确定", "OK" button in rank up pop-up window |
+|`defaultRoiCloseButtonBang`| area of "关闭", "閉じる" button on reward table window |
+|`defaultRoiPlayAgainBang`| area of "再次演出", "もう1回ライブ" button in result screen |
+ 
+#### How to activate auto cycling mode:
+- make sure you game are in "选择乐曲/楽曲選択“ scene,
+- select song.automode in web ui
+- click "load & perpare" button
+- wait for song detect, click "start"
+- since that time, auto cycling mode start.
+
+#### Architecture
+
+The post-game pipeline lives in **`post_game_nav.go`** and runs as a **5-stage state
+machine** that loops with OCR-based scene detection. Each stage checks a specific
+on-screen button via OCR, taps it if found, then transitions to the next stage.
+If a button is not detected within a timeout, the stage auto-advances anyway —
+this makes the pipeline robust against pop-ups that may or may not appear.
+
+**Files involved:**
+
+| File | Role |
+|------|------|
+| `post_game_nav.go` | State machine & navigation logic |
+| `nav_ocr.go` | ROI definitions for post-game buttons |
+| `main.go` | Integration: calls post-game nav after Autoplay, then replays |
+
+#### State Machine Flow
+
+```mermaid
+flowchart TD
+
+    START(["Autoplay ends"]) --> WAIT20["等待 20 秒加载结算画面"]
+    WAIT20 --> RANKUP
+
+    %% --- RANK UP ---
+    RANKUP["RANK_UP<br/>OCR: 确定 / OK "] 
+    RANKUP --> OKBTN
+    RANKUP -- "detected" --> RANKUP
+
+    %% --- OK BUTTON ---
+    OKBTN["OK_BUTTON<br/>OCR: OK"] 
+    OKBTN --> POP
+
+    %% --- POP UP CHECK ---
+    POP["POP_UP_CHECK<br/>OCR: 关闭 / 閉じる"] 
+    POP --> PLAYAGAIN
+
+    %% --- PLAY AGAIN ---
+    PLAYAGAIN["PLAY_AGAIN<br/>OCR: 再次演出 / もう1回ライブ"]
+    PLAYAGAIN --> CONT
+    PLAYAGAIN -- "detected" --> DONE
+
+    %% --- CONTINUE ---
+    CONT["CONTINUE<br/>OCR: 下一步 / 次へ"]
+    CONT --> RANKUP
+
+    DONE(["✔ 返回歌曲选择（成功）"])
+```
+
+**Key design decisions:**
+
+- **Timeouts instead of dead-ends** — If a pop-up (rank-up, rewards, OK dialog)
+  doesn't appear after a song, the state machine auto-skips it after a short
+  timeout (1s). This handles the fact that not every result screen shows all
+  dialog types.
+- **OCR on small ROIs** — Each button has its own compact ROI defined in
+  `nav_ocr.go`, so OCR only scans a tiny rectangle instead of the full screen.
+  This keeps detection fast (~200 ms per check).
+- **Keywords in Japanese / Chinese / English** — Each stage matches against
+  multiple languages (e.g. `["关闭", "閉じる", "閉じ"]`) so the same
+  logic works for JP, CN, and EN game clients.**(not conpatible EN currently)**
+- **Independent context** — Post-game nav uses `context.Background()` rather
+  than the run's context, so it survives the server's built-in auto-restart
+  mechanism that cancels the play context ~1 s after Autoplay finishes.
+
+#### Replay loop (main.go)
+
+After `postGameNavigationBanG` returns, `autoReplaying` is set to `true` and the
+goroutine ends. The server then auto-restarts `runOnce` (`gui/server.go:649`), which:
+
+1. Sees `autoReplaying == true` → calls `srv.StartPlaying()` instead of blocking on `WaitForStart`.
+2. Runs `bangNavPipeline()` to select difficulty and start the song.
+3. Runs `autoTriggerByVision()` for the first-note trigger.
+4. Runs `srv.Autoplay()` → and the whole cycle repeats.
+
+
 
 ### Vision Auto Trigger Technical Specification
 
