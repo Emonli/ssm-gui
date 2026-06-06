@@ -1281,7 +1281,12 @@ func runGUI(conf *config.Config) {
 					srv.SetError("Failed to connect to device: " + err.Error())
 					return
 				}
-				defer scrcpyCtrl.Close()
+				defer func() {
+					// Close may panic if the scrcpy connection has already
+					// dropped after a long idle period (e.g. postGameNav ~30s).
+					defer func() { recover() }()
+					scrcpyCtrl.Close()
+				}()
 				deviceCfg = conf.Get(adbDevice.Serial())
 				if deviceCfg == nil {
 					srv.SetError(fmt.Sprintf("Device [%s] not configured. Please add it in Settings first.", adbDevice.Serial()))
@@ -1616,9 +1621,11 @@ func runGUI(conf *config.Config) {
 						NavScene: "post-game-nav",
 						Message:  "post game nav start, wait for 20 second",
 					})
-					// Use the run context so clicking Stop interrupts post-game
-					// navigation instead of being ignored for its whole duration.
-					postGameNavigationBanG(ctx, adbDevice, sc, srv, ocrC)
+					// Use context.Background() so post-game nav survives the server's
+					// auto-restart (which cancels the run ctx ~1s after Autoplay).
+					// Trade-off: clicking Stop during post-game nav will NOT interrupt it.
+					postGameCtx := context.Background()
+					postGameNavigationBanG(postGameCtx, adbDevice, sc, srv, ocrC)
 					// Signal the next runOnce (triggered by server auto-restart)
 					// to skip WaitForStart and auto-proceed.
 					autoReplaying = true

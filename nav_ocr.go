@@ -21,25 +21,31 @@ type navROI struct{ x1, y1, x2, y2 float64 }
 
 // Predefined ROIs derived from BanG Dream / PJSK screenshot analysis.
 var (
-	defaultRoiSongNameBang = navROI{0.23, 0.46, 0.47, 0.50}
+	defaultRoiSongNameBang = navROI{0.15, 0.46, 0.45, 0.51}
+	//defaultRoiSongNameBang = navROI{0.23, 0.46, 0.47, 0.50}
 	defaultRoiSongNamePjsk = navROI{0.59, 0.46, 0.85, 0.52}
 
 	defaultRoiPageTitleBang = navROI{0.06, 0.04, 0.28, 0.12}
 	defaultRoiPageTitlePjsk = navROI{0.06, 0.04, 0.28, 0.12}
 
-	defaultRoiDifficultyRowBang = navROI{0.59, 0.68, 0.88, 0.80}
+	defaultRoiDifficultyRowBang = navROI{0.52, 0.70, 0.85, 0.80}
+	//defaultRoiDifficultyRowBang = navROI{0.59, 0.68, 0.88, 0.80}
 	defaultRoiDifficultyRowPjsk = navROI{0.60, 0.60, 0.90, 0.76}
 
-	defaultRoiKetteiBang = navROI{0.76, 0.83, 0.92, 0.92}
+	defaultRoiKetteiBang = navROI{0.75, 0.86, 0.92, 0.95}
+	//defaultRoiDifficultyRowBang = navROI{0.59, 0.68, 0.88, 0.80}
 	defaultRoiKetteiPjsk = navROI{0.68, 0.76, 0.80, 0.87}
 
-	defaultRoiLiveStartBang = navROI{0.72, 0.72, 0.89, 0.94}
+	defaultRoiLiveStartBang = navROI{0.80, 0.79, 0.95, 0.92}
+	//defaultRoiDifficultyRowBang = navROI{0.59, 0.68, 0.88, 0.80}
 	defaultRoiLiveStartPjsk = navROI{0.72, 0.71, 0.76, 0.81}
 
-	defaultRoiDialogTitleBang = navROI{0.33, 0.12, 0.47, 0.20}
+	defaultRoiDialogTitleBang = navROI{0.30, 0.09, 0.41, 0.16}
+	//defaultRoiDialogTitleBang = navROI{0.33, 0.12, 0.47, 0.20}
 	defaultRoiDialogTitlePjsk = navROI{0.26, 0.22, 0.43, 0.32}
 
-	defaultRoiDialogOKBang = navROI{0.50, 0.76, 0.66, 0.87}
+	defaultRoiDialogOKBang = navROI{0.51, 0.80, 0.69, 0.87}
+	//defaultRoiDialogOKBang = navROI{0.50, 0.76, 0.66, 0.87}
 	defaultRoiDialogOKPjsk = navROI{0.50, 0.69, 0.66, 0.81}
 
 	defaultRoiBandSongInfoBang = navROI{0.24, 0.60, 0.80, 0.88}

@@ -99,7 +99,7 @@ func postGameNavigationBanG(
 	lastTapAt := time.Time{}
 	_ = lastTapAt // reserved: may use for tap-rate limiting later
 	const preStartActionDelay = 2 * time.Second
-	const inActionDelay = 500 * time.Millisecond
+	const inActionDelay = 200 * time.Millisecond
 
 	RankUpROI := [4]float64{roiRankUpButton.x1, roiRankUpButton.y1, roiRankUpButton.x2, roiRankUpButton.y2}
 	ContinueButtonROI := [4]float64{roiContinueButton.x1, roiContinueButton.y1, roiContinueButton.x2, roiContinueButton.y2}
@@ -164,7 +164,7 @@ func postGameNavigationBanG(
 				continue
 			}
 			time.Sleep(inActionDelay)
-			if time.Since(stageEnteredAt) >= 900*time.Millisecond {
+			if time.Since(stageEnteredAt) >= 200*time.Millisecond {
 				setStage(stageOKButton)
 			}
 
@@ -198,7 +198,7 @@ func postGameNavigationBanG(
 				continue
 			}
 			time.Sleep(inActionDelay)
-			if time.Since(stageEnteredAt) >= 900*time.Millisecond {
+			if time.Since(stageEnteredAt) >= 200*time.Millisecond {
 				setStage(stagePopUpCheck)
 			}
 
@@ -232,7 +232,7 @@ func postGameNavigationBanG(
 				continue
 			}
 			time.Sleep(inActionDelay)
-			if time.Since(stageEnteredAt) >= 900*time.Millisecond {
+			if time.Since(stageEnteredAt) >= 200*time.Millisecond {
 				setStage(stagePlayAgain)
 			}
 
@@ -274,7 +274,7 @@ func postGameNavigationBanG(
 				emitStage(stagePlayAgain, "play-again-button", "→ 亮度不足，跳过", screenLuma, false)
 			}
 			time.Sleep(inActionDelay)
-			if time.Since(stageEnteredAt) >= 900*time.Millisecond {
+			if time.Since(stageEnteredAt) >= 200*time.Millisecond {
 				setStage(stageContinue)
 			}
 
@@ -315,7 +315,7 @@ func postGameNavigationBanG(
 				emitStage(stageContinue, "continue-button", "→ 亮度不足，跳过", screenLuma, false)
 			}
 			time.Sleep(inActionDelay)
-			if time.Since(stageEnteredAt) >= 900*time.Millisecond {
+			if time.Since(stageEnteredAt) >= 200*time.Millisecond {
 				setStage(stageRankUp)
 			}
 		}
